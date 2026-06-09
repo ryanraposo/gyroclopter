@@ -1,3 +1,1 @@
-# gyroclopter
-
-Scan a QR on your computer with your phone and point.
+Point your phone and then point your mouse. Self-secure. Low latency. See Releases for an exe.
