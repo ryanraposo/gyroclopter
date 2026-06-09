@@ -1,0 +1,20 @@
+{
+  "name": "gyroclopter",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/ryanraposo/gyroclopter#readme",
+  "bugs": {
+    "url": "https://github.com/ryanraposo/gyroclopter/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ryanraposo/gyroclopter.git"
+  },
+  "license": "ISC",
+  "author": "ryanraposo",
+  "type": "commonjs",
+  "main": "gyroclopter.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
