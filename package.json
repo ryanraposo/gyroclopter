@@ -16,5 +16,8 @@
   "main": "gyroclopter.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
   }
 }
