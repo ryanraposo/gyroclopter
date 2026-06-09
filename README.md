@@ -1,1 +1,8 @@
-Point your phone and then point your mouse. Self-secure. Low latency. See Releases for an exe.
+# gyroclopter
+
+Point your phone and then point your phone. 
+
+- Self-secure
+- Low latency
+
+See Releases for an exe.
