@@ -1,0 +1,27 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - run: npm install
+      - name: Install pkg
+        run: npm install -g pkg
+      - name: Bundle
+        run: npx pkg server.js --targets node18-win-x64 --output gyroclopter.exe
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: gyroclopter.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
