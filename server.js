@@ -8,6 +8,17 @@
  * - Terminal-based QR code for easy mobile pairing.
  */
 
+// Force a console window on Windows
+if (process.platform === 'win32' && !process.env.IS_CHILD) {
+    const { spawn } = require('child_process');
+    spawn('cmd', ['/c', 'start', 'cmd', '/k', process.argv[0], ...process.argv.slice(1)], {
+        detached: true,
+        stdio: 'ignore',
+        env: { ...process.env, IS_CHILD: 'true' }
+    });
+    process.exit();
+}
+
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
@@ -339,8 +350,8 @@ const CLIENT_HTML = \`
 </head>
 <body>
     <div id="modal">
-        <h2 class="modal-title">Permissions Required</h2>
-        <p class="modal-body">Gyroclopter needs access to your device's motion sensors to control the mouse pointer.</p>
+        <h2 class="modal-title" id="modal-title">Permissions Required</h2>
+        <p class="modal-body" id="modal-body">Gyroclopter needs access to your device's motion sensors to control the mouse pointer.</p>
         <button class="start-btn" id="start-btn">ALLOW & CONNECT</button>
     </div>
 
@@ -375,7 +386,8 @@ const CLIENT_HTML = \`
             active: true,
             sensitivity: 10,
             lastBeta: null,
-            lastGamma: null
+            lastGamma: null,
+            calibrated: false
         };
 
         const els = {
@@ -388,6 +400,8 @@ const CLIENT_HTML = \`
             rightClick: document.getElementById('right-click'),
             scrollPad: document.getElementById('scroll-pad'),
             modal: document.getElementById('modal'),
+            modalTitle: document.getElementById('modal-title'),
+            modalBody: document.getElementById('modal-body'),
             startBtn: document.getElementById('start-btn')
         };
 
@@ -399,6 +413,11 @@ const CLIENT_HTML = \`
                 state.connected = true;
                 els.status.textContent = 'CONNECTED';
                 els.status.classList.add('connected');
+                
+                // Show calibration prompt
+                els.modalTitle.textContent = 'Ready to Calibrate';
+                els.modalBody.textContent = 'Point your phone at the screen cursor and tap to start.';
+                els.startBtn.textContent = 'CALIBRATE & START';
             };
 
             state.ws.onclose = () => {
@@ -416,7 +435,7 @@ const CLIENT_HTML = \`
         }
 
         function handleOrientation(e) {
-            if (!state.active || !state.connected) return;
+            if (!state.active || !state.connected || !state.calibrated) return;
 
             const { beta, gamma } = e;
             if (state.lastBeta === null) {
@@ -443,20 +462,27 @@ const CLIENT_HTML = \`
             state.lastGamma = gamma;
         }
 
+        let permissionGranted = false;
+        
         els.startBtn.onclick = async () => {
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const permission = await DeviceOrientationEvent.requestPermission();
-                    if (permission !== 'granted') throw new Error('Permission denied');
-                } catch (err) {
-                    alert('Sensor access is required. Please ensure you are using HTTPS and have granted permission.');
-                    return;
+            if (!permissionGranted) {
+                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    try {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission !== 'granted') throw new Error('Permission denied');
+                    } catch (err) {
+                        alert('Sensor access is required. Please ensure you are using HTTPS and have granted permission.');
+                        return;
+                    }
                 }
+                permissionGranted = true;
+                window.addEventListener('deviceorientation', handleOrientation);
+                connect();
+            } else {
+                // Perform calibration
+                state.calibrated = true;
+                els.modal.classList.add('hidden');
             }
-
-            window.addEventListener('deviceorientation', handleOrientation);
-            els.modal.classList.add('hidden');
-            connect();
         };
 
         els.sensSlider.oninput = (e) => {
