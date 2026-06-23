@@ -47,6 +47,9 @@ out/
 *.pkg
 *.app
 
+# Hermes configuration directory
+.hermes
+
 # ==========================================
 # TypeScript & Cache
 # ==========================================
