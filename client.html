@@ -181,7 +181,7 @@
     <div id="modal">
         <h2 class="modal-title" id="modal-title">Permissions Required</h2>
         <p class="modal-body" id="modal-body">Gyroclopter needs access to your device's motion sensors to control the mouse pointer.</p>
-        <button class="start-btn" id="start-btn">ALLOW & CONNECT</button>
+        <button class="start-btn" id="start-btn">ALLOW & CONNECT</button><button class="start-btn" id="calibrate-btn" style="margin-left:8px;">CALIBRATE</button>
     </div>
 
     <header>
@@ -219,7 +219,9 @@
             sensitivity: 10,
             lastBeta: null,
             lastGamma: null,
-            calibrated: false
+            calibrated: false,
+            calibBeta: null,
+            calibGamma: null
         };
 
         const els = {
@@ -266,13 +268,14 @@
         function handleOrientation(e) {
             if (!state.active || !state.connected || !state.calibrated) return;
             const { beta, gamma } = e;
-            if (state.lastBeta === null) {
-                state.lastBeta = beta;
-                state.lastGamma = gamma;
+            // Initialize calibration offsets on first reading after calibration
+            if (state.calibBeta === null) {
+                state.calibBeta = beta;
+                state.calibGamma = gamma;
                 return;
             }
-            let dx = gamma - state.lastGamma;
-            let dy = beta - state.lastBeta;
+            let dx = gamma - state.calibGamma;
+            let dy = beta - state.calibBeta;
             // Handle wrap-around
             if (dx > 180) dx -= 360;
             else if (dx < -180) dx += 360;
@@ -281,8 +284,6 @@
             if (finalDx !== 0 || finalDy !== 0) {
                 send({ type: 'move', dx: finalDx, dy: finalDy });
             }
-            state.lastBeta = beta;
-            state.lastGamma = gamma;
         }
 
         let permissionGranted = false;
@@ -303,6 +304,20 @@
             } else {
                 // Perform calibration
                 state.calibrated = true;
+                state.lastBeta = null;
+                state.lastGamma = null;
+                els.modal.classList.add('hidden');
+            }
+        };
+        // Calibration button (optional)
+        const calibrateBtn = document.getElementById('calibrate-btn');
+        calibrateBtn.onclick = () => {
+            if (!permissionGranted) {
+                els.startBtn.click();
+            } else {
+                state.calibrated = true;
+                state.lastBeta = null;
+                state.lastGamma = null;
                 els.modal.classList.add('hidden');
             }
         };

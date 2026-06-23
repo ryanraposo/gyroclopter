@@ -38,8 +38,10 @@ const CONFIG = {
  * Ensures the application directory exists.
  */
 function ensureAppDir() {
-    if (!fs.existsSync(CONFIG.APP_DIR)) {
-        fs.mkdirSync(CONFIG.APP_DIR, { recursive: true });
+    // Allow overriding the application directory via the CERT_DIR environment variable for testing/custom deployments.
+    const appDir = process.env.CERT_DIR || CONFIG.APP_DIR;
+    if (!fs.existsSync(appDir)) {
+        fs.mkdirSync(appDir, { recursive: true });
     }
 }
 
@@ -90,27 +92,27 @@ class WindowsMouseController {
     init() {
         const psScript = `
             $member = @'
-            [DllImport("user32.dll")]
+            [DllImport(\"user32.dll\")]
             public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
-'@
-            $type = Add-Type -MemberDefinition $member -Name "WinMouse" -PassThru
+            '@
+            $type = Add-Type -MemberDefinition $member -Name \"WinMouse\" -PassThru
 
             while ($true) {
                 $line = [Console]::ReadLine()
-                if ($null -eq $line -or $line -eq "exit") { break }
+                if ($null -eq $line -or $line -eq \"exit\") { break }
                 try {
                     $parts = $line -split ' '
                     $cmd = $parts[0]
                     
                     switch ($cmd) {
-                        "MOVE"        { [WinMouse]::mouse_event(0x0001, [int]$parts[1], [int]$parts[2], 0, 0) }
-                        "LEFT_DOWN"   { [WinMouse]::mouse_event(0x0002, 0, 0, 0, 0) }
-                        "LEFT_UP"     { [WinMouse]::mouse_event(0x0004, 0, 0, 0, 0) }
-                        "CLICK_RIGHT" { [WinMouse]::mouse_event(0x0008 -bor 0x0010, 0, 0, 0, 0) }
-                        "SCROLL"      { [WinMouse]::mouse_event(0x0800, 0, 0, [int]$parts[1], 0) }
+                        \"MOVE\"        { [WinMouse]::mouse_event(0x0001, [int]$parts[1], [int]$parts[2], 0, 0) }
+                        \"LEFT_DOWN\"   { [WinMouse]::mouse_event(0x0002, 0, 0, 0, 0) }
+                        \"LEFT_UP\"     { [WinMouse]::mouse_event(0x0004, 0, 0, 0, 0) }
+                        \"CLICK_RIGHT\" { [WinMouse]::mouse_event(0x0008 -bor 0x0010, 0, 0, 0, 0) }
+                        \"SCROLL\"      { [WinMouse]::mouse_event(0x0800, 0, 0, [int]$parts[1], 0) }
                     }
                 } catch {
-                    # Silently ignore malformed lines
+                    // Silently ignore malformed lines
                 }
             }
         `;
@@ -136,6 +138,79 @@ class WindowsMouseController {
         if (this.process) {
             this.sendCommand('exit');
             this.process.kill();
+        }
+    }
+}
+
+// Linux mouse controller supporting X11 (xdotool) and Wayland (ydotool)
+class LinuxMouseController {
+    constructor() {
+        // Detect session type
+        const session = process.env.XDG_SESSION_TYPE || (process.env.DISPLAY ? 'x11' : 'unknown');
+        this.session = session;
+        this.cmd = null;
+        if (session === 'x11') {
+            this.cmd = 'xdotool';
+        } else if (session === 'wayland') {
+            this.cmd = 'ydotool';
+        } else {
+            console.warn('LinuxMouseController: Unknown session type, mouse control may not work');
+        }
+    }
+    sendCommand(cmd) {
+        if (!this.cmd) return;
+        const parts = cmd.split(' ');
+        const type = parts[0];
+        const exec = require('child_process').exec;
+        if (type === 'MOVE') {
+            const dx = parts[1];
+            const dy = parts[2];
+            const command = this.cmd === 'xdotool'
+                ? `xdotool mousemove_relative --sync ${dx} ${dy}`
+                : `ydotool mousemove ${dx} ${dy}`;
+            exec(command, (err) => { if (err) console.error('Mouse move error', err); });
+        } else if (type === 'LEFT_DOWN') {
+            const command = this.cmd === 'xdotool' ? 'xdotool click 1' : 'ydotool click 1';
+            exec(command);
+        } else if (type === 'LEFT_UP') {
+            // No explicit release needed for xdotool; ignore
+        } else if (type === 'CLICK_RIGHT') {
+            const command = this.cmd === 'xdotool' ? 'xdotool click 3' : 'ydotool click 3';
+            exec(command);
+        } else if (type === 'SCROLL') {
+            const delta = parseInt(parts[1], 10);
+            // Simple implementation: use wheel up/down in ydotool, xdotool click 4/5
+            let command;
+            if (this.cmd === 'xdotool') {
+                command = delta > 0 ? 'xdotool click 4' : 'xdotool click 5';
+            } else {
+                command = delta > 0 ? 'ydotool wheel up' : 'ydotool wheel down';
+            }
+            exec(command);
+        }
+    }
+    dispose() {
+        // No persistent process
+    }
+}
+
+// Generic controller that auto-switches based on OS and session
+class GenericMouseController {
+    constructor() {
+        if (os.platform() === 'win32') {
+            this.controller = new WindowsMouseController();
+        } else {
+            this.controller = new LinuxMouseController();
+        }
+    }
+    sendCommand(cmd) {
+        if (this.controller && typeof this.controller.sendCommand === 'function') {
+            this.controller.sendCommand(cmd);
+        }
+    }
+    dispose() {
+        if (this.controller && typeof this.controller.dispose === 'function') {
+            this.controller.dispose();
         }
     }
 }
@@ -170,7 +245,7 @@ async function main() {
     ensureAppDir();
     
     const certificates = getCertificates();
-    const mouse = new WindowsMouseController();
+    const mouse = new GenericMouseController();
 
     const server = https.createServer(certificates, (req, res) => {
         res.writeHead(200, { 'Content-Type': 'text/html' });
