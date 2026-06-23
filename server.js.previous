@@ -1,0 +1,602 @@
+/**
+ * Gyroclopter: A LAN-based air mouse using mobile gyroscopes.
+ * 
+ * Features:
+ * - Low-latency mouse control via WebSocket.
+ * - Automatic self-signed SSL certificate generation for secure sensor access.
+ * - Native Windows mouse injection via PowerShell (zero native Node dependencies).
+ * - Terminal-based QR code for easy mobile pairing.
+ */
+
+// Force a console window on Windows
+if (process.platform === 'win32' && !process.env.IS_CHILD) {
+    const { spawn } = require('child_process');
+    spawn('cmd', ['/c', 'start', 'cmd', '/k', process.argv[0], ...process.argv.slice(1)], {
+        detached: true,
+        stdio: 'ignore',
+        env: { ...process.env, IS_CHILD: 'true' }
+    });
+    process.exit();
+}
+
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
+const os = require('os');
+const { spawn } = require('child_process');
+const WebSocket = require('ws');
+const QRCode = require('qrcode');
+const selfsigned = require('selfsigned');
+
+const CONFIG = {
+    PORT: 8443,
+    APP_DIR: path.join(os.tmpdir(), 'gyroclopter'),
+    MOUSE_SENSITIVITY_MULTIPLIER: 1.2
+};
+
+/**
+ * Ensures the application directory exists.
+ */
+function ensureAppDir() {
+    if (!fs.existsSync(CONFIG.APP_DIR)) {
+        fs.mkdirSync(CONFIG.APP_DIR, { recursive: true });
+    }
+}
+
+/**
+ * Retrieves existing SSL certificates or generates new ones.
+ * Required for mobile browsers to allow access to DeviceOrientation events.
+ */
+function getCertificates() {
+    const keyPath = path.join(CONFIG.APP_DIR, 'key.pem');
+    const certPath = path.join(CONFIG.APP_DIR, 'cert.pem');
+
+    if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+        return {
+            key: fs.readFileSync(keyPath),
+            cert: fs.readFileSync(certPath)
+        };
+    }
+
+    console.log('\x1b[33m%s\x1b[0m', '🛡️  Generating self-signed SSL certificates for Gyroclopter...');
+    
+    const attrs = [{ name: 'commonName', value: 'Gyroclopter' }];
+    const pems = selfsigned.generate(attrs, { days: 365 });
+
+    fs.writeFileSync(keyPath, pems.private);
+    fs.writeFileSync(certPath, pems.cert);
+
+    return {
+        key: pems.private,
+        cert: pems.cert
+    };
+}
+
+/**
+ * Windows-specific mouse controller using PowerShell and P/Invoke.
+ */
+class WindowsMouseController {
+    constructor() {
+        this.process = null;
+        if (os.platform() === 'win32') {
+            this.init();
+        }
+    }
+
+    init() {
+        const psScript = `
+            $member = @'
+            [DllImport("user32.dll")]
+            public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
+'@
+            $type = Add-Type -MemberDefinition $member -Name "WinMouse" -PassThru
+
+            while ($true) {
+                $line = [Console]::ReadLine()
+                if ($null -eq $line -or $line -eq "exit") { break }
+                try {
+                    $parts = $line -split ' '
+                    $cmd = $parts[0]
+                    
+                    switch ($cmd) {
+                        "MOVE"        { [WinMouse]::mouse_event(0x0001, [int]$parts[1], [int]$parts[2], 0, 0) }
+                        "LEFT_DOWN"   { [WinMouse]::mouse_event(0x0002, 0, 0, 0, 0) }
+                        "LEFT_UP"     { [WinMouse]::mouse_event(0x0004, 0, 0, 0, 0) }
+                        "CLICK_RIGHT" { [WinMouse]::mouse_event(0x0008 -bor 0x0010, 0, 0, 0, 0) }
+                        "SCROLL"      { [WinMouse]::mouse_event(0x0800, 0, 0, [int]$parts[1], 0) }
+                    }
+                } catch {
+                    # Silently ignore malformed lines
+                }
+            }
+        `;
+
+        this.process = spawn('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', '-'], {
+            stdio: ['pipe', 'pipe', 'ignore']
+        });
+
+        this.process.stdin.write(psScript + '\n');
+        
+        this.process.on('error', (err) => {
+            console.error('Failed to start Windows Mouse Controller:', err);
+        });
+    }
+
+    sendCommand(cmd) {
+        if (this.process?.stdin?.writable) {
+            this.process.stdin.write(cmd + '\n');
+        }
+    }
+
+    dispose() {
+        if (this.process) {
+            this.sendCommand('exit');
+            this.process.kill();
+        }
+    }
+}
+
+/**
+ * Finds the local IPv4 address for LAN access.
+ */
+function getLocalIp() {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return '127.0.0.1';
+}
+
+const CLIENT_HTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gyroclopter Remote</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --accent: #3b82f6;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .status {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--error);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status.connected {
+            color: var(--success);
+        }
+
+        .status::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .control-panel {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid #334155;
+        }
+
+        .sensitivity-control {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            height: 8px;
+            border-radius: 4px;
+            background: #334155;
+        }
+
+        .main-pad {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #334155;
+            border-radius: 24px;
+            position: relative;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            transition: border-color 0.2s;
+        }
+
+        .main-pad.active {
+            border-color: var(--accent);
+        }
+
+        .pad-label {
+            font-weight: 700;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            transition: color 0.2s;
+        }
+
+        .main-pad.active .pad-label {
+            color: var(--accent);
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 80px 60px;
+            gap: 12px;
+        }
+
+        .btn {
+            background: var(--surface);
+            border: 1px solid #334155;
+            border-radius: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s, background 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-scroll {
+            grid-column: span 2;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        #modal {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+        }
+
+        .modal-body {
+            color: var(--text-dim);
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .start-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div id="modal">
+        <h2 class="modal-title" id="modal-title">Permissions Required</h2>
+        <p class="modal-body" id="modal-body">Gyroclopter needs access to your device's motion sensors to control the mouse pointer.</p>
+        <button class="start-btn" id="start-btn">ALLOW & CONNECT</button>
+    </div>
+
+    <header>
+        <div id="status" class="status">DISCONNECTED</div>
+    </header>
+
+    <div class="control-panel">
+        <div class="card sensitivity-control">
+            <div class="label-row">
+                <span>Sensitivity</span>
+                <span id="sens-val">10</span>
+            </div>
+            <input type="range" id="sens-slider" min="1" max="25" value="10">
+        </div>
+
+        <div class="main-pad active" id="track-pad">
+            <span class="pad-label" id="pad-status">ACTIVE</span>
+        </div>
+
+        <div class="button-grid">
+            <div class="btn" id="left-click">LEFT</div>
+            <div class="btn" id="right-click">RIGHT</div>
+            <div class="btn btn-scroll" id="scroll-pad">↕ Scroll ↕</div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            ws: null,
+            connected: false,
+            active: true,
+            sensitivity: 10,
+            lastBeta: null,
+            lastGamma: null,
+            calibrated: false
+        };
+
+        const els = {
+            status: document.getElementById('status'),
+            sensSlider: document.getElementById('sens-slider'),
+            sensVal: document.getElementById('sens-val'),
+            trackPad: document.getElementById('track-pad'),
+            padStatus: document.getElementById('pad-status'),
+            leftClick: document.getElementById('left-click'),
+            rightClick: document.getElementById('right-click'),
+            scrollPad: document.getElementById('scroll-pad'),
+            modal: document.getElementById('modal'),
+            modalTitle: document.getElementById('modal-title'),
+            modalBody: document.getElementById('modal-body'),
+            startBtn: document.getElementById('start-btn')
+        };
+
+        function connect() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            state.ws = new WebSocket(\\\`\\\${proto}//\\\${location.host}\\\`);
+
+            state.ws.onopen = () => {
+                state.connected = true;
+                els.status.textContent = 'CONNECTED';
+                els.status.classList.add('connected');
+                
+                // Show calibration prompt
+                els.modalTitle.textContent = 'Ready to Calibrate';
+                els.modalBody.textContent = 'Point your phone at the screen cursor and tap to start.';
+                els.startBtn.textContent = 'CALIBRATE & START';
+            };
+
+            state.ws.onclose = () => {
+                state.connected = false;
+                els.status.textContent = 'DISCONNECTED';
+                els.status.classList.remove('connected');
+                setTimeout(connect, 2000);
+            };
+        }
+
+        function send(data) {
+            if (state.connected && state.ws.readyState === WebSocket.OPEN) {
+                state.ws.send(JSON.stringify(data));
+            }
+        }
+
+        function handleOrientation(e) {
+            if (!state.active || !state.connected || !state.calibrated) return;
+
+            const { beta, gamma } = e;
+            if (state.lastBeta === null) {
+                state.lastBeta = beta;
+                state.lastGamma = gamma;
+                return;
+            }
+
+            let dx = gamma - state.lastGamma;
+            let dy = beta - state.lastBeta;
+
+            // Handle wrap-around
+            if (dx > 180) dx -= 360;
+            else if (dx < -180) dx += 360;
+
+            const finalDx = Math.round(dx * state.sensitivity);
+            const finalDy = Math.round(dy * state.sensitivity);
+
+            if (finalDx !== 0 || finalDy !== 0) {
+                send({ type: 'move', dx: finalDx, dy: finalDy });
+            }
+
+            state.lastBeta = beta;
+            state.lastGamma = gamma;
+        }
+
+        let permissionGranted = false;
+        
+        els.startBtn.onclick = async () => {
+            if (!permissionGranted) {
+                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    try {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission !== 'granted') throw new Error('Permission denied');
+                    } catch (err) {
+                        alert('Sensor access is required. Please ensure you are using HTTPS and have granted permission.');
+                        return;
+                    }
+                }
+                permissionGranted = true;
+                window.addEventListener('deviceorientation', handleOrientation);
+                connect();
+            } else {
+                // Perform calibration
+                state.calibrated = true;
+                els.modal.classList.add('hidden');
+            }
+        };
+
+        els.sensSlider.oninput = (e) => {
+            state.sensitivity = parseInt(e.target.value);
+            els.sensVal.textContent = state.sensitivity;
+        };
+
+        els.trackPad.onclick = () => {
+            state.active = !state.active;
+            els.trackPad.classList.toggle('active', state.active);
+            els.padStatus.textContent = state.active ? 'ACTIVE' : 'PAUSED';
+        };
+
+        els.leftClick.ontouchstart = (e) => { e.preventDefault(); send({ type: 'down' }); };
+        els.leftClick.ontouchend = (e) => { e.preventDefault(); send({ type: 'up' }); };
+        els.rightClick.ontouchstart = (e) => { e.preventDefault(); send({ type: 'right' }); };
+
+        let lastY = 0;
+        els.scrollPad.ontouchstart = (e) => { e.preventDefault(); lastY = e.touches[0].clientY; };
+        els.scrollPad.ontouchmove = (e) => {
+            e.preventDefault();
+            const y = e.touches[0].clientY;
+            const delta = lastY - y;
+            if (Math.abs(delta) > 5) {
+                send({ type: 'scroll', delta: Math.sign(delta) * 120 });
+                lastY = y;
+            }
+        };
+    </script>
+</body>
+</html>
+`;
+
+/**
+ * Main application entry point.
+ */
+async function main() {
+    ensureAppDir();
+    
+    const certificates = getCertificates();
+    const mouse = new WindowsMouseController();
+
+    const server = https.createServer(certificates, (req, res) => {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(CLIENT_HTML);
+    });
+
+    const wss = new WebSocket.Server({ server });
+
+    wss.on('connection', (ws) => {
+        ws.on('message', (message) => {
+            try {
+                const data = JSON.parse(message);
+                switch (data.type) {
+                    case 'move':
+                        const dx = Math.round(data.dx * CONFIG.MOUSE_SENSITIVITY_MULTIPLIER);
+                        const dy = Math.round(data.dy * CONFIG.MOUSE_SENSITIVITY_MULTIPLIER);
+                        mouse.sendCommand(\`MOVE \${dx} \${dy}\`);
+                        break;
+                    case 'down':
+                        mouse.sendCommand('LEFT_DOWN');
+                        break;
+                    case 'up':
+                        mouse.sendCommand('LEFT_UP');
+                        break;
+                    case 'right':
+                        mouse.sendCommand('CLICK_RIGHT');
+                        break;
+                    case 'scroll':
+                        mouse.sendCommand(\`SCROLL \${data.delta}\`);
+                        break;
+                }
+            } catch (err) {
+                // Ignore parsing errors
+            }
+        });
+    });
+
+    const localIp = getLocalIp();
+    const url = \`https://\${localIp}:\${CONFIG.PORT}\`;
+
+    server.listen(CONFIG.PORT, '0.0.0.0', async () => {
+        console.clear();
+        console.log('\x1b[36m%s\x1b[0m', '🚀 Gyroclopter Server Started');
+        console.log('\x1b[90m%s\x1b[0m', '--------------------------------------------------');
+        console.log(\`URL: \x1b[4m\${url}\x1b[0m\n\`);
+
+        try {
+            const qr = await QRCode.toString(url, { type: 'terminal', small: true });
+            console.log(qr);
+        } catch (err) {
+            console.log('Could not generate QR code in terminal.');
+        }
+
+        console.log('\x1b[33mInstructions:\x1b[0m');
+        console.log('1. Connect your phone to the same Wi-Fi network.');
+        console.log('2. Scan the QR code or enter the URL manually.');
+        console.log('3. Accept the self-signed certificate warning in your browser.');
+        console.log('4. Keep the browser tab open and active.');
+        console.log('\n\x1b[90mPress Ctrl+C to stop the server.\x1b[0m');
+    });
+
+    // Graceful shutdown
+    const shutdown = () => {
+        console.log('\nShutting down Gyroclopter...');
+        mouse.dispose();
+        process.exit();
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+}
+
+main().catch(err => {
+    console.error('Fatal error during startup:', err);
+    process.exit(1);
+});

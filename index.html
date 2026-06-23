@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gyroclopter Remote</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --accent: #3b82f6;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .status {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--error);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status.connected {
+            color: var(--success);
+        }
+
+        .status::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .control-panel {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid #334155;
+        }
+
+        .sensitivity-control {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            height: 8px;
+            border-radius: 4px;
+            background: #334155;
+        }
+
+        .main-pad {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #334155;
+            border-radius: 24px;
+            position: relative;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            transition: border-color 0.2s;
+        }
+
+        .main-pad.active {
+            border-color: var(--accent);
+        }
+
+        .pad-label {
+            font-weight: 700;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            transition: color 0.2s;
+        }
+
+        .main-pad.active .pad-label {
+            color: var(--accent);
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 80px 60px;
+            gap: 12px;
+        }
+
+        .btn {
+            background: var(--surface);
+            border: 1px solid #334155;
+            border-radius: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s, background 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-scroll {
+            grid-column: span 2;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        #modal {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+        }
+
+        .modal-body {
+            color: var(--text-dim);
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .start-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div id="modal">
+        <h2 class="modal-title" id="modal-title">Permissions Required</h2>
+        <p class="modal-body" id="modal-body">Gyroclopter needs access to your device's motion sensors to control the mouse pointer.</p>
+        <button class="start-btn" id="start-btn">ALLOW & CONNECT</button>
+    </div>
+
+    <header>
+        <div id="status" class="status">DISCONNECTED</div>
+    </header>
+
+    <div class="control-panel">
+        <div class="card sensitivity-control">
+            <div class="label-row">
+                <span>Sensitivity</span>
+                <span id="sens-val">10</span>
+            </div>
+            <input type="range" id="sens-slider" min="1" max="25" value="10">
+        </div>
+
+        <div class="main-pad active" id="track-pad">
+            <span class="pad-label" id="pad-status">ACTIVE</span>
+        </div>
+
+        <div class="button-grid">
+            <div class="btn" id="left-click">LEFT</div>
+            <div class="btn" id="right-click">RIGHT</div>
+            <div class="btn btn-scroll" id="scroll-pad">↕ Scroll ↕</div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            ws: null,
+            connected: false,
+            active: true,
+            sensitivity: 10,
+            lastBeta: null,
+            lastGamma: null,
+            calibrated: false
+        };
+
+        const els = {
+            status: document.getElementById('status'),
+            sensSlider: document.getElementById('sens-slider'),
+            sensVal: document.getElementById('sens-val'),
+            trackPad: document.getElementById('track-pad'),
+            padStatus: document.getElementById('pad-status'),
+            leftClick: document.getElementById('left-click'),
+            rightClick: document.getElementById('right-click'),
+            scrollPad: document.getElementById('scroll-pad'),
+            modal: document.getElementById('modal'),
+            modalTitle: document.getElementById('modal-title'),
+            modalBody: document.getElementById('modal-body'),
+            startBtn: document.getElementById('start-btn')
+        };
+
+        function connect() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            state.ws = new WebSocket(`${proto}//${location.host}`);
+
+            state.ws.onopen = () => {
+                state.connected = true;
+                els.status.textContent = 'CONNECTED';
+                els.status.classList.add('connected');
+                
+                // Show calibration prompt
+                els.modalTitle.textContent = 'Ready to Calibrate';
+                els.modalBody.textContent = 'Point your phone at the screen cursor and tap to start.';
+                els.startBtn.textContent = 'CALIBRATE & START';
+            };
+
+            state.ws.onclose = () => {
+                state.connected = false;
+                els.status.textContent = 'DISCONNECTED';
+                els.status.classList.remove('connected');
+                setTimeout(connect, 2000);
+            };
+        }
+
+        function send(data) {
+            if (state.connected && state.ws.readyState === WebSocket.OPEN) {
+                state.ws.send(JSON.stringify(data));
+            }
+        }
+
+        function handleOrientation(e) {
+            if (!state.active || !state.connected || !state.calibrated) return;
+
+            const { beta, gamma } = e;
+            if (state.lastBeta === null) {
+                state.lastBeta = beta;
+                state.lastGamma = gamma;
+                return;
+            }
+
+            let dx = gamma - state.lastGamma;
+            let dy = beta - state.lastBeta;
+
+            // Handle wrap-around
+            if (dx > 180) dx -= 360;
+            else if (dx < -180) dx += 360;
+
+            const finalDx = Math.round(dx * state.sensitivity);
+            const finalDy = Math.round(dy * state.sensitivity);
+
+            if (finalDx !== 0 || finalDy !== 0) {
+                send({ type: 'move', dx: finalDx, dy: finalDy });
+            }
+
+            state.lastBeta = beta;
+            state.lastGamma = gamma;
+        }
+
+        let permissionGranted = false;
+        
+        els.startBtn.onclick = async () => {
+            if (!permissionGranted) {
+                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    try {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission !== 'granted') throw new Error('Permission denied');
+                    } catch (err) {
+                        alert('Sensor access is required. Please ensure you are using HTTPS and have granted permission.');
+                        return;
+                    }
+                }
+                permissionGranted = true;
+                window.addEventListener('deviceorientation', handleOrientation);
+                connect();
+            } else {
+                // Perform calibration
+                state.calibrated = true;
+                els.modal.classList.add('hidden');
+            }
+        };
+
+        els.sensSlider.oninput = (e) => {
+            state.sensitivity = parseInt(e.target.value);
+            els.sensVal.textContent = state.sensitivity;
+        };
+
+        els.trackPad.onclick = () => {
+            state.active = !state.active;
+            els.trackPad.classList.toggle('active', state.active);
+            els.padStatus.textContent = state.active ? 'ACTIVE' : 'PAUSED';
+        };
+
+        els.leftClick.ontouchstart = (e) => { e.preventDefault(); send({ type: 'down' }); };
+        els.leftClick.ontouchend = (e) => { e.preventDefault(); send({ type: 'up' }); };
+        els.rightClick.ontouchstart = (e) => { e.preventDefault(); send({ type: 'right' }); };
+
+        let lastY = 0;
+        els.scrollPad.ontouchstart = (e) => { e.preventDefault(); lastY = e.touches[0].clientY; };
+        els.scrollPad.ontouchmove = (e) => {
+            e.preventDefault();
+            const y = e.touches[0].clientY;
+            const delta = lastY - y;
+            if (Math.abs(delta) > 5) {
+                send({ type: 'scroll', delta: Math.sign(delta) * 120 });
+                lastY = y;
+            }
+        };
+    </script>
+</body>
+</html>
