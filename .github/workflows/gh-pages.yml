@@ -30,6 +30,7 @@ jobs:
       - name: Prepare deployment directory
         run: |
           mkdir -p deploy
+          cp client.html deploy/index.html
           mv gyroclopter.zip deploy/
       
       - name: Deploy to GitHub Pages
