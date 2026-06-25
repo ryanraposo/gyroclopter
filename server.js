@@ -151,40 +151,42 @@ class LinuxMouseController {
             console.warn('LinuxMouseController: Unknown session type, mouse control may not work');
         }
     }
-    sendCommand(cmd) {
-        if (!this.cmd) return;
-        const parts = cmd.split(' ');
-        const type = parts[0];
-        const exec = require('child_process').exec;
-        if (type === 'MOVE') {
-            const dx = parts[1];
-            const dy = parts[2];
-            const command = this.cmd === 'xdotool'
-                ? `xdotool mousemove_relative --sync ${dx} ${dy}`
-                : `ydotool mousemove -- ${dx} ${dy}`;
-            exec(command, (err) => { if (err) console.error('Mouse move error', err); });
-        } else if (type === 'LEFT_DOWN') {
-            const command = this.cmd === 'xdotool' ? 'xdotool click 1' : 'ydotool click 1';
-            exec(command);
-        } else if (type === 'LEFT_UP') {
-            // No explicit release needed for xdotool; ignore
-        } else if (type === 'CLICK_RIGHT') {
-            const command = this.cmd === 'xdotool' ? 'xdotool click 3' : 'ydotool click 3';
-            exec(command);
-        } else if (type === 'SCROLL') {
-            const delta = parseInt(parts[1], 10);
-            // Simple implementation: use wheel up/down in ydotool, xdotool click 4/5
-            let command;
-            if (this.cmd === 'xdotool') {
-                command = delta > 0 ? 'xdotool click 4' : 'xdotool click 5';
-            } else {
-                command = delta > 0 ? 'ydotool wheel up' : 'ydotool wheel down';
-            }
-            exec(command);
+sendCommand(cmd) {
+    if (!this.cmd) return;
+    const parts = cmd.split(' ');
+    const type = parts[0];
+    const exec = require('child_process').exec;
+
+    if (type === 'MOVE') {
+        const dx = parts[1];
+        const dy = parts[2];
+        const command = this.cmd === 'xdotool'
+            ? `xdotool mousemove_relative --sync ${dx} ${dy}`
+            : `ydotool mousemove -r -- ${dx} ${dy}`;
+        exec(command, (err) => { if (err) console.error('Mouse move error', err); });
+
+    } else if (type === 'LEFT_DOWN') {
+        const command = this.cmd === 'xdotool' ? 'xdotool mousedown 1' : 'ydotool click 0x40';
+        exec(command);
+
+    } else if (type === 'LEFT_UP') {
+        const command = this.cmd === 'xdotool' ? 'xdotool mouseup 1' : 'ydotool click 0x80';
+        exec(command);
+
+    } else if (type === 'CLICK_RIGHT') {
+        const command = this.cmd === 'xdotool' ? 'xdotool click 3' : 'ydotool click 0xC0';
+        exec(command);
+
+    } else if (type === 'SCROLL') {
+        const delta = parseInt(parts[1], 10);
+        let command;
+        if (this.cmd === 'xdotool') {
+            command = delta > 0 ? 'xdotool click 4' : 'xdotool click 5';
+        } else {
+            const scrollY = delta > 0 ? -3 : 3;
+            command = `ydotool mousescroll -- 0 ${scrollY}`;
         }
-    }
-    dispose() {
-        // No persistent process
+        exec(command);
     }
 }
 
