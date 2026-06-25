@@ -8,7 +8,9 @@
  * - Terminal-based QR code for easy mobile pairing.
  */
 
-// Force a console window on Windows
+// Force a console window on Windows when the app is launched via GUI double-click.
+// We re-launch ourselves through cmd /c start so a terminal window appears;
+// IS_CHILD prevents the child from spawning another console recursively.
 if (process.platform === 'win32' && !process.env.IS_CHILD) {
     const { spawn } = require('child_process');
     spawn('cmd', ['/c', 'start', 'cmd', '/k', process.argv[0], ...process.argv.slice(1)], {
@@ -29,8 +31,11 @@ const QRCode = require('qrcode');
 const selfsigned = require('selfsigned');
 
 const CONFIG = {
+    // Port for the HTTPS server and WebSocket endpoint.
     PORT: 8443,
+    // Directory for persisted SSL key/cert pairs.
     APP_DIR: path.join(os.tmpdir(), 'gyroclopter'),
+    // Software multiplier applied to incoming device deltas before dispatch.
     MOUSE_SENSITIVITY_MULTIPLIER: 1.2
 };
 
@@ -84,6 +89,7 @@ class WindowsMouseController {
     }
 
     init() {
+        // PowerShell script that uses user32.dll via P/Invoke for native Windows mouse events.
         const psScript = `
             $member = @'
             [DllImport(\"user32.dll\")]
@@ -144,8 +150,10 @@ class LinuxMouseController {
         this.session = session;
         this.cmd = null;
         if (session === 'x11') {
+            // X11 sessions can use xdotool for input injection.
             this.cmd = 'xdotool';
         } else if (session === 'wayland') {
+            // Wayland sessions require ydotool (input event injection).
             this.cmd = 'ydotool';
         } else {
             console.warn('LinuxMouseController: Unknown session type, mouse control may not work');
@@ -251,9 +259,11 @@ async function main() {
     wss.on('connection', (ws) => {
         ws.on('message', (message) => {
             try {
+                // Client messages are simple JSON objects describing input events.
                 const data = JSON.parse(message);
                 switch (data.type) {
                     case 'move':
+                        // Apply software sensitivity to device-delivered deltas.
                         const dx = Math.round(data.dx * CONFIG.MOUSE_SENSITIVITY_MULTIPLIER);
                         const dy = Math.round(data.dy * CONFIG.MOUSE_SENSITIVITY_MULTIPLIER);
                         mouse.sendCommand(`MOVE ${dx} ${dy}`);
