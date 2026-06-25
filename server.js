@@ -136,10 +136,8 @@ class WindowsMouseController {
     }
 }
 
-// Linux mouse controller supporting X11 (xdotool) and Wayland (ydotool)
 class LinuxMouseController {
     constructor() {
-        // Detect session type
         const session = process.env.XDG_SESSION_TYPE || (process.env.DISPLAY ? 'x11' : 'unknown');
         this.session = session;
         this.cmd = null;
@@ -151,42 +149,48 @@ class LinuxMouseController {
             console.warn('LinuxMouseController: Unknown session type, mouse control may not work');
         }
     }
-sendCommand(cmd) {
-    if (!this.cmd) return;
-    const parts = cmd.split(' ');
-    const type = parts[0];
-    const exec = require('child_process').exec;
 
-    if (type === 'MOVE') {
-        const dx = parts[1];
-        const dy = parts[2];
-        const command = this.cmd === 'xdotool'
-            ? `xdotool mousemove_relative --sync ${dx} ${dy}`
-            : `ydotool mousemove -r -- ${dx} ${dy}`;
-        exec(command, (err) => { if (err) console.error('Mouse move error', err); });
+    sendCommand(cmd) {
+        if (!this.cmd) return;
+        const parts = cmd.split(' ');
+        const type = parts[0];
+        const exec = require('child_process').exec;
 
-    } else if (type === 'LEFT_DOWN') {
-        const command = this.cmd === 'xdotool' ? 'xdotool mousedown 1' : 'ydotool click 0x40';
-        exec(command);
+        if (type === 'MOVE') {
+            const dx = parts[1];
+            const dy = parts[2];
+            const command = this.cmd === 'xdotool'
+                ? `xdotool mousemove_relative --sync ${dx} ${dy}`
+                : `ydotool mousemove -r -- ${dx} ${dy}`;
+            exec(command, (err) => { if (err) console.error('Mouse move error', err); });
 
-    } else if (type === 'LEFT_UP') {
-        const command = this.cmd === 'xdotool' ? 'xdotool mouseup 1' : 'ydotool click 0x80';
-        exec(command);
+        } else if (type === 'LEFT_DOWN') {
+            const command = this.cmd === 'xdotool' ? 'xdotool mousedown 1' : 'ydotool click 0x40';
+            exec(command);
 
-    } else if (type === 'CLICK_RIGHT') {
-        const command = this.cmd === 'xdotool' ? 'xdotool click 3' : 'ydotool click 0xC0';
-        exec(command);
+        } else if (type === 'LEFT_UP') {
+            const command = this.cmd === 'xdotool' ? 'xdotool mouseup 1' : 'ydotool click 0x80';
+            exec(command);
 
-    } else if (type === 'SCROLL') {
-        const delta = parseInt(parts[1], 10);
-        let command;
-        if (this.cmd === 'xdotool') {
-            command = delta > 0 ? 'xdotool click 4' : 'xdotool click 5';
-        } else {
-            const scrollY = delta > 0 ? -3 : 3;
-            command = `ydotool mousescroll -- 0 ${scrollY}`;
+        } else if (type === 'CLICK_RIGHT') {
+            const command = this.cmd === 'xdotool' ? 'xdotool click 3' : 'ydotool click 0xC0';
+            exec(command);
+
+        } else if (type === 'SCROLL') {
+            const delta = parseInt(parts[1], 10);
+            let command;
+            if (this.cmd === 'xdotool') {
+                command = delta > 0 ? 'xdotool click 4' : 'xdotool click 5';
+            } else {
+                const scrollY = delta > 0 ? -3 : 3;
+                command = `ydotool mousescroll -- 0 ${scrollY}`;
+            }
+            exec(command);
         }
-        exec(command);
+    }
+
+    dispose() {
+        // No persistent process
     }
 }
 
