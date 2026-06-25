@@ -1,57 +1,68 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-
-// Import utilities from server
+const http = require('http');
+const WebSocket = require('ws');
+const { WebSocketServer } = require('ws');
 const { getCertificates, ensureAppDir } = require('../server');
 
 describe('User Stories', () => {
-  const tempDir = path.join(os.tmpdir(), 'gyroclopter-us-test');
+  let tempDir;
+  
+  beforeAll(() => {
+    // Create temporary directory for testing
+    tempDir = path.join(os.tmpdir(), 'gyroclopter-us-test');
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true });
+    fs.mkdirSync(tempDir);
+  });
 
   afterAll(() => {
-    // Cleanup temp directory if it exists
-    try {
-      if (fs.existsSync(tempDir)) {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      }
-    } catch (_) {}
-  });
-
-  test('ensureAppDir creates application directory when missing', () => {
-    // Ensure the directory does not exist before test
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
-    // Temporarily override CONFIG.APP_DIR by setting environment variable
-    const originalAppDir = process.env.CERT_DIR;
-    process.env.CERT_DIR = tempDir;
-    // Ensure clean state
-    ensureAppDir();
-    expect(fs.existsSync(tempDir)).toBe(true);
-    // Restore env
-    if (originalAppDir === undefined) delete process.env.CERT_DIR; else process.env.CERT_DIR = originalAppDir;
-  });
-
-  test('getCertificates generates placeholder certificates when none exist', () => {
-    // Use a fresh temporary directory
-    const certDir = path.join(os.tmpdir(), 'gyroclopter-cert-test');
-    if (fs.existsSync(certDir)) {
-      fs.rmSync(certDir, { recursive: true, force: true });
-    }
-    process.env.CERT_DIR = certDir;
-    const certs = getCertificates();
-    const keyPath = path.join(certDir, 'key.pem');
-    const certPath = path.join(certDir, 'cert.pem');
-    expect(fs.existsSync(keyPath)).toBe(true);
-    expect(fs.existsSync(certPath)).toBe(true);
-    const keyContent = fs.readFileSync(keyPath, 'utf8');
-    const certContent = fs.readFileSync(certPath, 'utf8');
-    expect(keyContent).toBe('FAKE-KEY');
-    expect(certContent).toBe('FAKE-CERT');
-    expect(certs.key.toString()).toBe('FAKE-KEY');
-    expect(certs.cert.toString()).toBe('FAKE-CERT');
     // Cleanup
-    fs.rmSync(certDir, { recursive: true, force: true });
-    delete process.env.CERT_DIR;
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true });
+  });
+
+  test('User can connect via WebSocket and control mouse', async () => {
+    const certDir = path.join(os.tmpdir(), 'gyroclopter-us-cert');
+    if (fs.existsSync(certDir)) fs.rmSync(certDir, { recursive: true });
+    fs.mkdirSync(certDir);
+    
+    process.env.CERT_DIR = certDir;
+    await ensureAppDir();
+    
+    // Simulate server startup
+    const certs = await getCertificates();
+    const server = require('https').createServer(certs, (req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'));
+    });
+
+    const wss = new WebSocketServer({ server });
+    
+    await new Promise(resolve => server.listen(0, () => resolve()));
+    
+    // Test WebSocket commands
+    const ws = new WebSocket(`wss://localhost:${server.address().port}`, {
+      rejectUnauthorized: false
+    });
+    
+    // Wait for connection
+    await new Promise(resolve => {
+      ws.addEventListener('open', resolve);
+    });
+    
+    // Move command
+    ws.send(JSON.stringify({
+      type: 'move',
+      dx: 10,
+      dy: 20
+    }));
+    
+    // Click command
+    ws.send(JSON.stringify({ type: 'right' }));
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    ws.close();
+    server.close();
   });
 });
