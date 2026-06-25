@@ -1,8 +1,0 @@
-# Pull from the Ollama Cloud free tier base model
-FROM gpt-oss:120b-cloud
-
-# Strictly limit the context window to safely satisfy the Hermes agent limit
-PARAMETER num_ctx 64000
-
-# Optional: Add system instructions to prime it for multi-step agent actions
-SYSTEM "You are an autonomous AI engineering agent inside the Hermes platform. Follow instructions precisely, execute multi-step tools cleanly, and output structured project configurations."

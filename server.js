@@ -49,13 +49,8 @@ function ensureAppDir() {
  * Retrieves existing SSL certificates or generates new ones.
  * Required for mobile browsers to allow access to DeviceOrientation events.
  */
-function getCertificates() {
-    // Determine the directory for certificates. Allow overriding via CERT_DIR env var for testing or custom deployment.
+async function getCertificates() {
     const certDir = process.env.CERT_DIR || CONFIG.APP_DIR;
-    // Ensure the directory exists.
-    if (!fs.existsSync(certDir)) {
-        fs.mkdirSync(certDir, { recursive: true });
-    }
     const keyPath = path.join(certDir, 'key.pem');
     const certPath = path.join(certDir, 'cert.pem');
     // If both files exist, read and return them.
@@ -65,18 +60,17 @@ function getCertificates() {
             cert: fs.readFileSync(certPath)
         };
     }
-    console.log('\x1b[33m%s\x1b[0m', '🛡️  Generating self-signed SSL certificates for Gyroclopter...');
-    // Generate placeholder certificates when not present.
-    const placeholderKey = 'FAKE-KEY';
-    const placeholderCert = 'FAKE-CERT';
-    fs.writeFileSync(keyPath, placeholderKey);
-    fs.writeFileSync(certPath, placeholderCert);
+    console.log('\\x1b[33m%s\\x1b[0m', '🛡️  Generating self-signed SSL certificates for Gyroclopter...');
+    // Generate real self-signed certificates using selfsigned library
+    const attrs = [{ name: 'commonName', value: 'Gyroclopter' }];
+    const pems = await selfsigned.generate(attrs, { days: 365 });
+    fs.writeFileSync(keyPath, pems.private);
+    fs.writeFileSync(certPath, pems.cert);
     return {
-        key: placeholderKey,
-        cert: placeholderCert
+        key: pems.private,
+        cert: pems.cert
     };
 }
-
 
 /**
  * Windows-specific mouse controller using PowerShell and P/Invoke.
@@ -121,7 +115,7 @@ class WindowsMouseController {
             stdio: ['pipe', 'pipe', 'ignore']
         });
 
-        this.process.stdin.write(psScript + '\n');
+        this.process.stdin.write(psScript + '\\n');
         
         this.process.on('error', (err) => {
             console.error('Failed to start Windows Mouse Controller:', err);
@@ -130,7 +124,7 @@ class WindowsMouseController {
 
     sendCommand(cmd) {
         if (this.process?.stdin?.writable) {
-            this.process.stdin.write(cmd + '\n');
+            this.process.stdin.write(cmd + '\\n');
         }
     }
 
@@ -167,7 +161,7 @@ class LinuxMouseController {
             const dy = parts[2];
             const command = this.cmd === 'xdotool'
                 ? `xdotool mousemove_relative --sync ${dx} ${dy}`
-                : `ydotool mousemove ${dx} ${dy}`;
+                : `ydotool mousemove -- ${dx} ${dy}`;
             exec(command, (err) => { if (err) console.error('Mouse move error', err); });
         } else if (type === 'LEFT_DOWN') {
             const command = this.cmd === 'xdotool' ? 'xdotool click 1' : 'ydotool click 1';
@@ -244,7 +238,7 @@ function getClientHtml() {
 async function main() {
     ensureAppDir();
     
-    const certificates = getCertificates();
+    const certificates = await getCertificates();
     const mouse = new GenericMouseController();
 
     const server = https.createServer(certificates, (req, res) => {
@@ -288,9 +282,9 @@ async function main() {
 
     server.listen(CONFIG.PORT, '0.0.0.0', async () => {
         console.clear();
-        console.log('\x1b[36m%s\x1b[0m', '🚀 Gyroclopter Server Started');
-        console.log('\x1b[90m%s\x1b[0m', '--------------------------------------------------');
-        console.log(`URL: \x1b[4m${url}\x1b[0m\n`);
+        console.log('\\x1b[36m%s\\x1b[0m', '🚀 Gyroclopter Server Started');
+        console.log('\\x1b[90m%s\\x1b[0m', '--------------------------------------------------');
+        console.log(`URL: \\x1b[4m${url}\\x1b[0m\\n`);
 
         try {
             const qr = await QRCode.toString(url, { type: 'terminal', small: true });
@@ -299,17 +293,17 @@ async function main() {
             console.log('Could not generate QR code in terminal.');
         }
 
-        console.log('\x1b[33mInstructions:\x1b[0m');
+        console.log('\\x1b[33mInstructions:\\x1b[0m');
         console.log('1. Connect your phone to the same Wi-Fi network.');
         console.log('2. Scan the QR code or enter the URL manually.');
         console.log('3. Accept the self-signed certificate warning in your browser.');
         console.log('4. Keep the browser tab open and active.');
-        console.log('\n\x1b[90mPress Ctrl+C to stop the server.\x1b[0m');
+        console.log('\\n\\x1b[90mPress Ctrl+C to stop the server.\\x1b[0m');
     });
 
     // Graceful shutdown
     const shutdown = () => {
-        console.log('\nShutting down Gyroclopter...');
+        console.log('\\nShutting down Gyroclopter...');
         mouse.dispose();
         process.exit();
     };
@@ -318,7 +312,14 @@ async function main() {
     process.on('SIGTERM', shutdown);
 }
 
+// Only start the server if run directly (not when required as a module)
+if (require.main === module) {
+  main();
+}
+
 module.exports = {
   getCertificates,
-  ensureAppDir
+  ensureAppDir,
+  getLocalIp,
+  CONFIG
 };

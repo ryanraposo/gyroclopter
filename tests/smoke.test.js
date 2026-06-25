@@ -1,35 +1,20 @@
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const http = require('http');
-const { createServer } = require('https');
 const { WebSocketServer } = require('ws');
-const selfsigned = require('selfsigned');
-const { getCertificates, ensureAppDir } = require('../server');
+const WebSocket = require('ws');
 
 describe('Gyroclopter Smoke Tests', () => {
   let server;
   let wss;
-  let tempCertDir;
-
-  beforeAll(async () => {
-    // Create temporary certificate directory
-    tempCertDir = path.join(os.tmpdir(), 'gyroclopter-smoke-test');
-    fs.rmSync(tempCertDir, { recursive: true });
-    fs.mkdirSync(tempCertDir);
-    
-    process.env.CERT_DIR = tempCertDir;
-    await ensureAppDir();
-  });
 
   afterAll(() => {
-    // Cleanup
-    if (fs.existsSync(tempCertDir)) fs.rmSync(tempCertDir, { recursive: true });
-    delete process.env.CERT_DIR;
+    if (wss) wss.close();
+    if (server) server.close();
   });
 
-  test('Server starts and serves client HTML', async () => {
-    const server = createServer((req, res) => {
+  test('Server serves client HTML', async () => {
+    server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'));
     });
@@ -52,17 +37,23 @@ describe('Gyroclopter Smoke Tests', () => {
   });
 
   test('WebSocket connection handles mouse commands', async () => {
-    const cert = await getCertificates();
-    const server = createServer(cert, (req, res) => {
+    server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'));
+      res.end('OK');
     });
 
     wss = new WebSocketServer({ server });
     
     await new Promise(resolve => server.listen(0, () => resolve()));
     
-    const ws = new WebSocket(`wss://localhost:${server.address().port}`);
+    const ws = new WebSocket(`ws://localhost:${server.address().port}`);
+    
+    // Wait for connection
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Connection timeout')), 3000);
+      ws.addEventListener('open', () => { clearTimeout(timeout); resolve(); });
+      ws.addEventListener('error', (e) => { clearTimeout(timeout); reject(e); });
+    });
     
     // Test move command
     ws.send(JSON.stringify({
@@ -74,8 +65,11 @@ describe('Gyroclopter Smoke Tests', () => {
     // Test click command
     ws.send(JSON.stringify({ type: 'right' }));
     
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 100));
     
+    ws.close();
     server.close();
+    wss = null;
+    server = null;
   });
 });

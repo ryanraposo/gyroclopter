@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const http = require('http');
+const WebSocket = require('ws');
+const { WebSocketServer } = require('ws');
 const { getCertificates, ensureAppDir } = require('../server');
 
 describe('User Stories', () => {
@@ -9,7 +12,7 @@ describe('User Stories', () => {
   beforeAll(() => {
     // Create temporary directory for testing
     tempDir = path.join(os.tmpdir(), 'gyroclopter-us-test');
-    fs.rmSync(tempDir, { recursive: true });
+    if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true });
     fs.mkdirSync(tempDir);
   });
 
@@ -20,25 +23,32 @@ describe('User Stories', () => {
 
   test('User can connect via WebSocket and control mouse', async () => {
     const certDir = path.join(os.tmpdir(), 'gyroclopter-us-cert');
-    fs.rmSync(certDir, { recursive: true });
+    if (fs.existsSync(certDir)) fs.rmSync(certDir, { recursive: true });
     fs.mkdirSync(certDir);
     
     process.env.CERT_DIR = certDir;
     await ensureAppDir();
     
     // Simulate server startup
-    const certs = getCertificates();
+    const certs = await getCertificates();
     const server = require('https').createServer(certs, (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'));
     });
 
-    const wss = new require('ws').WebSocketServer({ server });
+    const wss = new WebSocketServer({ server });
     
     await new Promise(resolve => server.listen(0, () => resolve()));
     
     // Test WebSocket commands
-    const ws = new require('ws').WebSocket(`wss://localhost:${server.address().port}`);
+    const ws = new WebSocket(`wss://localhost:${server.address().port}`, {
+      rejectUnauthorized: false
+    });
+    
+    // Wait for connection
+    await new Promise(resolve => {
+      ws.addEventListener('open', resolve);
+    });
     
     // Move command
     ws.send(JSON.stringify({
@@ -52,6 +62,7 @@ describe('User Stories', () => {
     
     await new Promise(resolve => setTimeout(resolve, 500));
     
+    ws.close();
     server.close();
   });
 });
