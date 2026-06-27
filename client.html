@@ -332,19 +332,32 @@
         els.leftClick.onmouseup = () => send({ type: 'up' });
         els.leftClick.onmouseleave = () => send({ type: 'up' });
 
-        els.rightClick.onpointerdown = (e) => { e.preventDefault(); send({ type: 'right' }); };
+        els.rightClick.ontouchstart = (e) => { e.preventDefault(); send({ type: 'right' }); };
+        els.rightClick.onmousedown = () => send({ type: 'right' });
 
         let lastY = 0;
         let isScrolling = false;
-        els.scrollPad.onpointerdown = (e) => {
+        els.scrollPad.ontouchstart = (e) => {
             e.preventDefault();
             isScrolling = true;
-            lastY = e.clientY;
-            els.scrollPad.setPointerCapture(e.pointerId);
+            lastY = e.touches[0].clientY;
         };
-        els.scrollPad.onpointermove = (e) => {
+        els.scrollPad.ontouchmove = (e) => {
             if (!isScrolling) return;
             e.preventDefault();
+            const y = e.touches[0].clientY;
+            const delta = lastY - y;
+            if (Math.abs(delta) > 5) {
+                send({ type: 'scroll', delta: Math.sign(delta) * 120 });
+                lastY = y;
+            }
+        };
+        els.scrollPad.ontouchend = () => { isScrolling = false; };
+        els.scrollPad.ontouchcancel = () => { isScrolling = false; };
+
+        els.scrollPad.onmousedown = (e) => { isScrolling = true; lastY = e.clientY; };
+        els.scrollPad.onmousemove = (e) => {
+            if (!isScrolling) return;
             const y = e.clientY;
             const delta = lastY - y;
             if (Math.abs(delta) > 5) {
@@ -352,11 +365,8 @@
                 lastY = y;
             }
         };
-        els.scrollPad.onpointerup = (e) => {
-            isScrolling = false;
-            els.scrollPad.releasePointerCapture(e.pointerId);
-        };
-        els.scrollPad.onpointercancel = () => { isScrolling = false; };
+        els.scrollPad.onmouseup = () => { isScrolling = false; };
+        els.scrollPad.onmouseleave = () => { isScrolling = false; };
     </script>
 </body>
 </html>

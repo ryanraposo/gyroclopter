@@ -65,6 +65,9 @@ describe('Gyroclopter Smoke Tests', () => {
     // Test click command
     ws.send(JSON.stringify({ type: 'right' }));
     
+    // Test scroll command
+    ws.send(JSON.stringify({ type: 'scroll', delta: 120 }));
+    
     await new Promise(resolve => setTimeout(resolve, 100));
     
     ws.close();
