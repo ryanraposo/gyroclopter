@@ -1,14 +1,28 @@
-# Changelog
+CHANGELOG
 
-All notable changes to this project will be documented in this file.
+v0.2.0 — Latest Release
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Released: Jun 27, 2026
+Published via GitHub Actions
 
-## [1.1.0] - 2026-06-10
-### Added
-- Calibration workflow: mandatory two-step process (Permissions -> Calibration/Start) for gyroscope zeroing.
-- Console enforcement: executable forces a visible `cmd.exe` window on Windows.
-- Automated release workflow: triggers on push to `main` with `conventional-changelog-action`.
+Major Features
 
-## [Unreleased]
+* Confirmed native Linux support (X11 + Wayland)
+* Added automatic X11 ↔ Wayland detection and switching
+* Introduced full gyro calibration system with improved stability
+* Packaged application as distributable .deb
+* Streamlined build + release pipeline via GitHub Actions
+
+⸻
+
+v0.1.0
+
+Released: Jun 23, 2026
+Published via GitHub Actions
+
+Features
+
+* Initial Linux support baseline
+* Early gyro calibration implementation
+* Basic console enforcement layer
+* Initial automated release workflow setup
