@@ -37,7 +37,9 @@ coverage/
 # Build Outputs & Bundles
 # ==========================================
 dist/
-build/
+# build/ contains checked-in icon assets (see scripts/generate-icons.js).
+# Generated electron-builder outputs go here and remain ignored.
+build/icon.ico.tmp
 out/
 .next/
 .nuxt/

@@ -1,6 +1,19 @@
 CHANGELOG
 
-v0.2.0 — Latest Release
+v0.3.0 — Latest Release
+
+Released: Jun 27, 2026
+Published via GitHub Actions
+
+Improvements
+
+* Refined Linux packaging metadata: explicit `desktopName`, `linux.category`, `linux.syncDesktopName`, and a custom application icon set
+* Added Windows NSIS installer to the release pipeline (`build-exe` job) so `.exe` artifacts ship alongside `.deb`
+* Added `npm run icons:generate` script and committed icon assets under `build/icons/` and `build/icon.ico`
+
+⸻
+
+v0.2.0
 
 Released: Jun 27, 2026
 Published via GitHub Actions
