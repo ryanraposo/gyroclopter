@@ -1,5 +1,5 @@
 /**
- * Builds Windows .ico and Linux .png icon assets from gyroclopter-512.png.
+ * Builds Windows .ico and Linux .png icon assets from build/icon-source.png.
  *
  * Outputs:
  *   build/icon.ico     (multi-size: 16, 32, 48, 64, 128, 256)
@@ -10,7 +10,7 @@ const path = require('path');
 const { PNG } = require('pngjs');
 
 const ROOT = path.join(__dirname, '..');
-const SOURCE = path.join(ROOT, 'gyroclopter-512.png');
+const SOURCE = path.join(ROOT, 'build', 'icon-source.png');
 const BUILD = path.join(ROOT, 'build');
 const ICONS_DIR = path.join(BUILD, 'icons');
 
