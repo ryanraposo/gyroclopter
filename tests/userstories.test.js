@@ -60,6 +60,9 @@ describe('User Stories', () => {
     // Click command
     ws.send(JSON.stringify({ type: 'right' }));
     
+    // Scroll command
+    ws.send(JSON.stringify({ type: 'scroll', delta: -120 }));
+    
     await new Promise(resolve => setTimeout(resolve, 500));
     
     ws.close();

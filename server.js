@@ -182,7 +182,7 @@ class LinuxMouseController {
             exec(command);
 
         } else if (type === 'CLICK_RIGHT') {
-            const command = this.cmd === 'xdotool' ? 'xdotool click 3' : 'ydotool click 0xC0';
+            const command = this.cmd === 'xdotool' ? 'xdotool click 3' : 'ydotool click 0xC1';
             exec(command);
 
         } else if (type === 'SCROLL') {
@@ -192,7 +192,7 @@ class LinuxMouseController {
                 command = delta > 0 ? 'xdotool click 4' : 'xdotool click 5';
             } else {
                 const scrollY = delta > 0 ? -3 : 3;
-                command = `ydotool mousescroll -- 0 ${scrollY}`;
+                command = `ydotool mousemove --wheel -x 0 -y ${scrollY}`;
             }
             exec(command);
         }
