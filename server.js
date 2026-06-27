@@ -11,7 +11,12 @@
 // Force a console window on Windows when run directly.
 if (require.main === module && process.platform === 'win32' && !process.env.IS_CHILD) {
     const { spawn } = require('child_process');
-    spawn('cmd', ['/c', 'start', 'cmd', '/k', process.argv[0], ...process.argv.slice(1)], {
+    const childArgv = [process.argv[0], ...process.argv.slice(1)];
+    // chcp 65001 ensures the spawned cmd window uses UTF-8 so the QR code
+    // half-block glyphs render correctly. >nul silences chcp's banner.
+    const spawnCmd = 'chcp 65001 >nul && ' +
+        childArgv.map(a => (a.indexOf(' ') >= 0 ? `"${a}"` : a)).join(' ');
+    spawn('cmd', ['/c', 'start', 'cmd', '/k', spawnCmd], {
         detached: true,
         stdio: 'ignore',
         env: { ...process.env, IS_CHILD: 'true' }
@@ -386,8 +391,13 @@ async function main() {
         console.log(`URL: \x1b[4m${url}\x1b[0m\n`);
 
         try {
-            const qr = await QRCode.toString(url, { type: 'terminal', small: true });
+            const qr = await QRCode.toString(url, {
+                type: 'terminal',
+                small: true,
+                errorCorrectionLevel: 'M'
+            });
             console.log(qr);
+            console.log('\x1b[90m' + url + '\x1b[0m');
         } catch (err) {
             console.log('Could not generate QR code in terminal.');
         }

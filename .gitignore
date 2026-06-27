@@ -37,14 +37,14 @@ coverage/
 # Build Outputs & Bundles
 # ==========================================
 dist/
-# build/ contains checked-in icon assets (see scripts/generate-icons.js).
-# Generated electron-builder outputs go here and remain ignored.
-build/icon.ico.tmp
+# Generated icon assets (rebuilt by `npm run build:icons`).
+build/icon.ico
+build/icons/
 out/
 .next/
 .nuxt/
 .cache/
-# Compiled standalone binaries (like pkg or Bun compile outputs)
+# Compiled standalone binaries (pkg / SEA outputs)
 *.exe
 *.pkg
 *.app
