@@ -2,7 +2,7 @@
  * Build a Debian package around the Linux SEA binary using dpkg-deb.
  * Output: dist/gyroclopter_<version>_amd64.deb
  *
- * Requires: npm run dist (dist/gyroclopter-<version>), build:icons (build/icons/<N>x<N>.png)
+ * Requires: build:sea (dist/gyroclopter-<version>), build:icons (build/icons/<N>x<N>.png)
  */
 const fs = require('fs');
 const path = require('path');
@@ -44,7 +44,7 @@ function findIcon() {
 
 function main() {
   if (!fs.existsSync(BIN_SRC)) {
-    console.error(`Missing ${BIN_SRC} — run "npm run dist" first.`);
+    console.error(`Missing ${BIN_SRC} — run "npm run build:sea" first.`);
     process.exit(1);
   }
 

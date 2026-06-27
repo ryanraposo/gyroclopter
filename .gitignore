@@ -44,13 +44,10 @@ out/
 .next/
 .nuxt/
 .cache/
-# Compiled standalone binaries (nexe outputs)
+# Compiled standalone binaries (pkg / SEA outputs)
 *.exe
 *.pkg
 *.app
-
-# nexe temporary build files
-.nexe/
 
 # Hermes configuration directory
 .hermes
