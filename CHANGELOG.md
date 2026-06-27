@@ -1,6 +1,24 @@
 CHANGELOG
 
-v0.3.0 — Latest Release
+v0.3.1 — Latest Release
+
+Released: Jun 27, 2026
+Published via GitHub Actions
+
+Changes
+
+* Replaced Electron / SEA / postject build pipeline with @yao-pkg/pkg single-file binary
+* Windows deliverable: NSIS installer (MUI_ICON), no icon embedded in bare .exe
+* Linux deliverable: plain dpkg-deb .deb package
+* QR code fix on Windows: cmd console set to UTF-8 codepage via chcp 65001
+* CI: smoke-test each artifact on the runner (boot binary, verify port 8443, kill)
+* CI: pushes to main update a single draft release tagged "latest" for manual verification
+* CI: tags (v*) publish a real release
+* Removed dev deps: electron, electron-builder, postject, pe-library, rcedit
+
+⸻
+
+v0.3.0
 
 Released: Jun 27, 2026
 Published via GitHub Actions
