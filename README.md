@@ -38,7 +38,6 @@ The server will output a QR‑code in your terminal. Scan it with your phone’s
 ### Prerequisites
 - **Node.js** (>= 14) and **npm**
 - **PowerShell** (Windows) – required for the mouse controller.
-- **OpenSSL** is *not* required – the project generates a placeholder certificate using the `selfsigned` npm package.
 
 ```bash
 # Install Node.js (example for Ubuntu)
@@ -104,7 +103,7 @@ All tests should pass on a fresh clone.
 ```
 gyroclopter/
 ├─ server.js            # Main server entry point (exports getCertificates, ensureAppDir)
-├─ index.html           # Web client served to mobile devices
+├─ client.html          # Web client served to mobile devices
 ├─ package.json         # npm manifest (scripts, dependencies)
 ├─ README.md            # <-- this file
 └─ tests/

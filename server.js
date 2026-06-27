@@ -46,6 +46,14 @@ function ensureAppDir() {
 }
 
 /**
+ * Checks whether a buffer/string looks like a PEM-encoded key or certificate.
+ */
+function looksLikePem(data) {
+    const text = data.toString();
+    return text.includes('-----BEGIN') && text.includes('-----END');
+}
+
+/**
  * Retrieves existing SSL certificates or generates new ones.
  * Required for mobile browsers to allow access to DeviceOrientation events.
  */
@@ -53,12 +61,13 @@ async function getCertificates() {
     const certDir = process.env.CERT_DIR || CONFIG.APP_DIR;
     const keyPath = path.join(certDir, 'key.pem');
     const certPath = path.join(certDir, 'cert.pem');
-    // If both files exist, read and return them.
+    // If both files exist and contain valid-looking PEM data, read and return them.
     if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
-        return {
-            key: fs.readFileSync(keyPath),
-            cert: fs.readFileSync(certPath)
-        };
+        const key = fs.readFileSync(keyPath);
+        const cert = fs.readFileSync(certPath);
+        if (looksLikePem(key) && looksLikePem(cert)) {
+            return { key, cert };
+        }
     }
     console.log('\\x1b[33m%s\\x1b[0m', '🛡️  Generating self-signed SSL certificates for Gyroclopter...');
     // Generate real self-signed certificates using selfsigned library
@@ -231,10 +240,10 @@ function getLocalIp() {
 }
 
 /**
- * Retrieves the client HTML from the index.html file.
+ * Retrieves the client HTML from the client.html file.
  */
 function getClientHtml() {
-    const htmlPath = path.join(__dirname, 'index.html');
+    const htmlPath = path.join(__dirname, 'client.html');
     return fs.readFileSync(htmlPath, 'utf8');
 }
 

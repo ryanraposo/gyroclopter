@@ -180,8 +180,8 @@
 <body>
     <div id="modal">
         <h2 class="modal-title" id="modal-title">Permissions Required</h2>
-        <p class="modal-body" id="modal-body">Gyroclopter needs access to your device's motion sensors to control the mouse pointer.</p>
-        <button class="start-btn" id="start-btn">ALLOW & CONNECT</button><button class="start-btn" id="calibrate-btn" style="margin-left:8px;">CALIBRATE</button>
+        <p class="modal-body" id="modal-body">Gyroclopter needs access to your device's gyroscope to control the mouse pointer.</p>
+        <button class="start-btn" id="start-btn">ALLOW & CONNECT</button><button class="start-btn hidden" id="calibrate-btn" style="margin-left:8px;">CALIBRATE</button>
     </div>
 
     <header>
@@ -208,20 +208,13 @@
         </div>
     </div>
 
-    <div style="text-align:center; margin-bottom:10px;">
-        <a href="gyroclopter.zip" download style="background:var(--accent); color:white; padding:8px 16px; border-radius:8px; text-decoration:none; font-weight:600;">Download Gyroclopter (ZIP)</a>
-    </div>
     <script>
         const state = {
             ws: null,
             connected: false,
             active: true,
             sensitivity: 10,
-            lastBeta: null,
-            lastGamma: null,
-            calibrated: false,
-            calibBeta: null,
-            calibGamma: null
+            calibrated: false
         };
 
         const els = {
@@ -236,7 +229,8 @@
             modal: document.getElementById('modal'),
             modalTitle: document.getElementById('modal-title'),
             modalBody: document.getElementById('modal-body'),
-            startBtn: document.getElementById('start-btn')
+            startBtn: document.getElementById('start-btn'),
+            calibrateBtn: document.getElementById('calibrate-btn')
         };
 
         function connect() {
@@ -249,7 +243,8 @@
                 // Show calibration prompt
                 els.modalTitle.textContent = 'Ready to Calibrate';
                 els.modalBody.textContent = 'Point your phone at the screen cursor and tap to start.';
-                els.startBtn.textContent = 'CALIBRATE & START';
+                els.startBtn.classList.add('hidden');
+                els.calibrateBtn.classList.remove('hidden');
             };
             state.ws.onclose = () => {
                 state.connected = false;
@@ -265,33 +260,30 @@
             }
         }
 
-        function handleOrientation(e) {
+        function handleMotion(e) {
             if (!state.active || !state.connected || !state.calibrated) return;
-            const { beta, gamma } = e;
-            // Initialize calibration offsets on first reading after calibration
-            if (state.calibBeta === null) {
-                state.calibBeta = beta;
-                state.calibGamma = gamma;
-                return;
-            }
-            let dx = gamma - state.calibGamma;
-            let dy = beta - state.calibBeta;
-            // Handle wrap-around
-            if (dx > 180) dx -= 360;
-            else if (dx < -180) dx += 360;
-            const finalDx = Math.round(dx * state.sensitivity);
-            const finalDy = Math.round(dy * state.sensitivity);
-            if (finalDx !== 0 || finalDy !== 0) {
-                send({ type: 'move', dx: finalDx, dy: finalDy });
+            const rr = e.rotationRate;
+            if (!rr) return;
+            const alpha = rr.alpha;
+            const beta = rr.beta;
+            const gamma = rr.gamma;
+            if (alpha == null || beta == null || gamma == null) return;
+            // On this device alpha=pitch (tilt up/down), beta=roll (tilt left/right),
+            // gamma=yaw (rotate left/right). Map pitch to vertical and yaw to horizontal.
+            // Flip the gamma sign if yaw left/right is reversed.
+            const dx = Math.round(-gamma * state.sensitivity * 0.05);
+            const dy = Math.round(-alpha * state.sensitivity * 0.05);
+            if (dx !== 0 || dy !== 0) {
+                send({ type: 'move', dx, dy });
             }
         }
 
         let permissionGranted = false;
         els.startBtn.onclick = async () => {
             if (!permissionGranted) {
-                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                     try {
-                        const permission = await DeviceOrientationEvent.requestPermission();
+                        const permission = await DeviceMotionEvent.requestPermission();
                         if (permission !== 'granted') throw new Error('Permission denied');
                     } catch (err) {
                         alert('Sensor access is required. Please ensure you are using HTTPS and have granted permission.');
@@ -299,25 +291,20 @@
                     }
                 }
                 permissionGranted = true;
-                window.addEventListener('deviceorientation', handleOrientation);
+                window.addEventListener('devicemotion', handleMotion);
                 connect();
-            } else {
-                // Perform calibration
+            } else if (state.connected) {
                 state.calibrated = true;
-                state.lastBeta = null;
-                state.lastGamma = null;
                 els.modal.classList.add('hidden');
             }
         };
-        // Calibration button (optional)
-        const calibrateBtn = document.getElementById('calibrate-btn');
+        // Start button
+        const calibrateBtn = els.calibrateBtn;
         calibrateBtn.onclick = () => {
             if (!permissionGranted) {
                 els.startBtn.click();
             } else {
                 state.calibrated = true;
-                state.lastBeta = null;
-                state.lastGamma = null;
                 els.modal.classList.add('hidden');
             }
         };
