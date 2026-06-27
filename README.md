@@ -103,7 +103,7 @@ All tests should pass on a fresh clone.
 ```
 gyroclopter/
 ├─ server.js            # Main server entry point (exports getCertificates, ensureAppDir)
-├─ index.html           # Web client served to mobile devices
+├─ client.html          # Web client served to mobile devices
 ├─ package.json         # npm manifest (scripts, dependencies)
 ├─ README.md            # <-- this file
 └─ tests/

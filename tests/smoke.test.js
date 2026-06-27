@@ -5,11 +5,11 @@ const http = require('http');
 
 const SERVER_PATH = path.resolve(path.join(__dirname, '..', 'server.js'));
 const SOURCE = fs.readFileSync(SERVER_PATH, 'utf8');
-const HTML_PATH = path.join(path.resolve(path.join(__dirname, '..')), 'index.html');
+const HTML_PATH = path.join(path.resolve(path.join(__dirname, '..')), 'client.html');
 const HTML = fs.readFileSync(HTML_PATH, 'utf8');
 
 describe('HTML client encoding and rendering', () => {
-  test('server.js extracts client HTML into index.html with full HTML document', () => {
+  test('server.js extracts client HTML into client.html with full HTML document', () => {
     expect(fs.existsSync(HTML_PATH)).toBe(true);
     expect(HTML).toContain('<!DOCTYPE html>');
     expect(HTML).toContain('<html');

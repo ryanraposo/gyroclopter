@@ -175,7 +175,7 @@ class LinuxMouseController {
             const dy = parts[2];
             const command = this.cmd === 'xdotool'
                 ? `xdotool mousemove_relative --sync ${dx} ${dy}`
-                : `ydotool mousemove ${dx} ${dy}`;
+                : `ydotool mousemove -x ${dx} -y ${dy}`;
             exec(command, (err) => { if (err) console.error('Mouse move error', err); });
         } else if (type === 'LEFT_DOWN') {
             const command = this.cmd === 'xdotool' ? 'xdotool click 1' : 'ydotool click 1';
@@ -239,10 +239,10 @@ function getLocalIp() {
 }
 
 /**
- * Retrieves the client HTML from the index.html file.
+ * Retrieves the client HTML from the client.html file.
  */
 function getClientHtml() {
-    const htmlPath = path.join(__dirname, 'index.html');
+    const htmlPath = path.join(__dirname, 'client.html');
     return fs.readFileSync(htmlPath, 'utf8');
 }
 
