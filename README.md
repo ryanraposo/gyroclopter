@@ -111,10 +111,27 @@ Dependencies are listed in `package.json`:
 | `selfsigned`   | Generate self-signed SSL certificates     |
 | `ws`           | WebSocket server                          |
 | `jest`         | Test framework (dev dependency)           |
-| `@yao-pkg/pkg` | Single-file binary packaging (dev)        |
+| `nexe`         | Single-file binary packaging (dev)        |
 | `pngjs`        | Pure-JS PNG/ICO generation (dev)          |
 
-### Build a distributable
+### Build a standalone executable
+
+```bash
+npm run dist
+```
+
+Produces a single-file executable in `dist/`:
+
+- **Windows**: `dist\gyroclopter-<version>.exe` — double-click to run.
+- **Linux**: `dist/gyroclopter-<version>` — run from terminal.
+
+Custom Windows icon requires building Node from source (needs Python 3 and C++ build tools):
+
+```bash
+npm run dist -- --build
+```
+
+### Build installers (release pipeline)
 
 ```bash
 # Windows: produces dist\gyroclopter-setup-<version>.exe (requires makensis.exe).
@@ -226,12 +243,11 @@ gyroclopter/
 ├── server.js                 # Main HTTPS/WebSocket server and mouse controllers
 ├── client.html               # Mobile web client
 ├── installer.nsi             # NSIS installer script (Windows)
-├── pkg.config.cjs            # @yao-pkg/pkg configuration
 ├── package.json              # npm manifest
 ├── package-lock.json         # Locked dependency tree
 ├── CHANGELOG.md              # Release history
 ├── scripts/                  # Build tooling
-│   ├── build-binary.js       # @yao-pkg/pkg wrapper
+│   ├── build-binary.js       # nexe wrapper
 │   ├── build-icon.js         # PNG → ICO generator
 │   ├── build-installer-nsi.js# Drives makensis
 │   └── build-deb.js          # Plain dpkg-deb assembler

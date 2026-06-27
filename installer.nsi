@@ -34,7 +34,7 @@ Section "Gyroclopter (required)"
   SectionIn RO
   SetOutPath "$INSTDIR"
 
-  ; The pkg-built binary, renamed to gyroclopter.exe at install time.
+  ; The nexe-built binary, renamed to gyroclopter.exe at install time.
   File "dist\gyroclopter-${VERSION}.exe"
   Rename "$INSTDIR\gyroclopter-${VERSION}.exe" "$INSTDIR\gyroclopter.exe"
 

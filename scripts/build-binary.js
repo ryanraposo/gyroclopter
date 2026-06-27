@@ -1,56 +1,66 @@
 /**
- * Build a single-file executable from server.js using @yao-pkg/pkg.
+ * Build a single-file executable from server.js using nexe.
  *
- * Static options (assets) live in pkg.config.cjs because the CLI has no --assets.
- * Per-platform target and output name are set here.
+ * Embeds client.html as a resource so the binary is self-contained.
+ * On Windows, embeds build/icon.ico as the application icon (requires --build).
  *
- * Output: dist/gyroclopter-<version>.(exe|<nothing on Linux>)
- *
- * The Windows icon is embedded afterward by build:win via rcedit.
- * The Linux binary is later wrapped by build:linux into a .deb package.
+ * Output: dist/gyroclopter-<version>.exe (Windows)
+ *         dist/gyroclopter-<version>      (Linux/macOS)
  */
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { compile } = require('nexe');
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
 const VERSION = require(path.join(ROOT, 'package.json')).version;
 
-function target() {
-  if (process.platform === 'win32') {
-    return { node: 'node24-win-x64', out: `gyroclopter-${VERSION}.exe` };
-  }
-  if (process.platform === 'linux') {
-    return { node: 'node24-linux-x64', out: `gyroclopter-${VERSION}` };
-  }
-  throw new Error(`Unsupported platform: ${process.platform}`);
-}
+const build = process.argv.includes('--build') || process.argv.includes('-b');
+const iconPath = path.join(ROOT, 'build', 'icon.ico');
+const useIcon = process.platform === 'win32' && fs.existsSync(iconPath);
 
-function main() {
+const outName = process.platform === 'win32'
+  ? `gyroclopter-${VERSION}.exe`
+  : `gyroclopter-${VERSION}`;
+
+async function main() {
   fs.mkdirSync(DIST, { recursive: true });
-  const t = target();
-  const outPath = path.join(DIST, t.out);
-  const pkg = path.join(ROOT, 'node_modules', '.bin',
-    process.platform === 'win32' ? 'pkg.cmd' : 'pkg');
+  const outPath = path.join(DIST, outName);
 
   console.log(`Building binary: ${outPath}`);
-  const r = spawnSync(`"${pkg}"`, [
-    '--targets', t.node,
-    '--output', outPath,
-    '--config', 'pkg.config.cjs',
-    'server.js'
-  ], { stdio: 'inherit', shell: true });
+  if (build) console.log('  --build: compiling Node.js from source');
+  if (useIcon) console.log(`  icon: ${iconPath}`);
 
-  if (r.status !== 0) {
-    console.error(`pkg exited with code ${r.status}`);
-    process.exit(r.status ?? 1);
+  const opts = {
+    input: path.join(ROOT, 'server.js'),
+    output: outPath,
+    resources: [path.join(ROOT, 'client.html')],
+    build,
+    fakeArgv: true,
+    silent: false,
+  };
+
+  if (useIcon && build) {
+    opts.ico = iconPath;
   }
+
+  try {
+    await compile(opts);
+  } catch (err) {
+    console.error('nexe compilation failed:', err.message);
+    process.exit(1);
+  }
+
   if (process.platform !== 'win32' && fs.existsSync(outPath)) {
     fs.chmodSync(outPath, 0o755);
   }
   const size = fs.statSync(outPath).size;
   console.log(`✓ Built ${outPath} (${(size / 1024 / 1024).toFixed(1)} MB)`);
+
+  if (useIcon && !build) {
+    console.log('  Note: custom icon requires --build flag (compiling from source).');
+    console.log('  Run: node scripts/build-binary.js --build');
+  }
 }
 
 main();

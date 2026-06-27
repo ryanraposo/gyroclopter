@@ -26,7 +26,7 @@ Gyroclopter is a Node.js application that turns a mobile phone into a wireless g
 | SSL certificates | `selfsigned` (^5.5.0) |
 | Testing | Jest (^29.7.0) — no configuration file, uses defaults |
 | Client | Pure HTML/CSS/JS (no frameworks, no build step) |
-| Packaging | `@yao-pkg/pkg` (`^6.20.0`) — single-file Node binary |
+| Packaging | `nexe` (`5.0.0-beta.4`) — single-file Node binary, compiles from source |
 | Icons | `pngjs` (`^7.0.0`) — custom ICO writer (no external image tooling) |
 | Windows installer | NSIS 3.10 (`makensis.exe`) |
 | Linux package | `dpkg-deb` (Debian packaging tool) |
@@ -46,15 +46,14 @@ gyroclopter/
 ├── server.js                 # Main entry point — HTTPS/WebSocket server + mouse controllers
 ├── client.html               # Single-file mobile web client (HTML/CSS/JS)
 ├── installer.nsi             # NSIS installer script (Windows)
-├── pkg.config.cjs            # @yao-pkg/pkg configuration (assets list)
 ├── package.json              # npm manifest
 ├── package-lock.json         # Locked dependency tree
 ├── CHANGELOG.md              # Release history (Keep a Changelog format)
 ├── README.md                 # Human-facing documentation
 ├── .gitignore                # Git ignore rules
 ├── scripts/                  # Build tooling (all Node.js)
-│   ├── build-binary.js       # Wraps @yao-pkg/pkg to produce single-file .exe / linux binary
-│   ├── build-icon.js         # Pure-JS ICO + PNG generator from gyroclopter-512.png
+│   ├── build-binary.js       # Wraps nexe to produce single-file .exe / linux binary
+│   ├── build-icon.js         # Pure-JS ICO + PNG generator from icon-source.png
 │   ├── build-installer-nsi.js# Locates makensis and runs it against installer.nsi
 │   └── build-deb.js          # Assembles dpkg-deb layout and emits .deb
 └── tests/                    # Jest test suite
@@ -83,13 +82,22 @@ npm start
 # Run the Jest test suite
 npm test
 
+# Build standalone executable (nexe)
+npm run dist
+
 # Build Windows installer + Linux .deb (release pipeline)
 npm run build
 ```
 
 The Windows job in `.github/workflows/build-release.yml` produces `dist/gyroclopter-setup-<version>.exe` via NSIS.
 The Linux job produces `dist/gyroclopter_<version>_amd64.deb` via `dpkg-deb`.
-Both wrap the single-file binary emitted by `@yao-pkg/pkg`.
+Both wrap the single-file binary emitted by `nexe`.
+
+Custom icons on Windows require `--build` (compiles Node from source):
+```bash
+npm run dist -- --build
+```
+This needs Python 3 and a C++ compiler (Visual Studio Build Tools on Windows, `build-essential` on Linux).
 
 There is no linting or transpilation. The project runs directly from source.
 

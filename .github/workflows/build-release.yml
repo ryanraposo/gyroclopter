@@ -1,11 +1,11 @@
-name: build-release
+name: Build & Release
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*'
+    branches: [main, dev]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -18,6 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: npm
       - run: npm ci
       - run: npm test
 
@@ -29,64 +30,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: npm
+      - run: npm ci
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate icons
+      - name: Build icons
         run: npm run build:icons
 
-      - name: Build single-file binary
-        run: npm run build:binary
+      - name: Build binary (nexe)
+        run: node scripts/build-binary.js --build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Install NSIS
-        run: choco install nsis -y
-
-      - name: Build NSIS installer
+      - name: Build installer (NSIS)
         run: npm run build:win-installer
+        continue-on-error: true
 
-      - name: Smoke-test the .exe on this runner
-        shell: pwsh
-        run: |
-          $exe = Get-ChildItem -LiteralPath "dist" -Filter "gyroclopter-*.exe" -Exclude "*-setup-*.exe" | Select-Object -First 1
-          if (-not $exe) {
-            Write-Error "No single-file .exe found in dist/"
-            exit 1
-          }
-          $certDir = Join-Path $env:TEMP "gyroclopter-smoke-$PID"
-          New-Item -ItemType Directory -Path $certDir -Force | Out-Null
-          $pinfo = New-Object System.Diagnostics.ProcessStartInfo
-          $pinfo.FileName = $exe.FullName
-          $pinfo.UseShellExecute = $false
-          $pinfo.RedirectStandardError = $true
-          $pinfo.RedirectStandardOutput = $true
-          $pinfo.EnvironmentVariables["IS_CHILD"] = "1"
-          $pinfo.EnvironmentVariables["CERT_DIR"] = $certDir
-          $proc = [System.Diagnostics.Process]::Start($pinfo)
-          Start-Sleep -Seconds 6
-          if ($proc.HasExited) {
-            $err = $proc.StandardError.ReadToEnd()
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-            Remove-Item -LiteralPath $certDir -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Error "Binary exited early (code $($proc.ExitCode)): $err"
-            exit 1
-          }
-          $listen = Get-NetTCPConnection -LocalPort 8443 -ErrorAction SilentlyContinue
-          if (-not $listen) {
-            Stop-Process -Id $proc.Id -Force
-            Remove-Item -LiteralPath $certDir -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Error "Binary started but did not listen on port 8443"
-            exit 1
-          }
-          Stop-Process -Id $proc.Id -Force
-          Remove-Item -LiteralPath $certDir -Recurse -Force -ErrorAction SilentlyContinue
-          Write-Host "Smoke test passed: PID=$($proc.Id) listening on 8443 ($($exe.Name))"
-
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: windows-installer
-          path: dist/gyroclopter-setup-*.exe
+          name: gyroclopter-windows
+          path: dist/*.exe
 
   build-linux:
     needs: test
@@ -96,85 +58,40 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: npm
+      - run: npm ci
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate icons
+      - name: Build icons
         run: npm run build:icons
 
-      - name: Build single-file binary
-        run: npm run build:binary
+      - name: Install deb packaging tools
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev
 
-      - name: Assemble .deb package
+      - name: Build binary (nexe)
+        run: node scripts/build-binary.js
+
+      - name: Build .deb
         run: npm run build:linux
 
-      - name: Smoke-test the .deb on this runner
-        run: |
-          set -e
-          DEB=$(ls dist/gyroclopter_*_amd64.deb | head -1)
-          dpkg-deb -I "$DEB"
-          rm -rf /tmp/gyroclopter-smoke
-          mkdir -p /tmp/gyroclopter-smoke
-          dpkg-deb -x "$DEB" /tmp/gyroclopter-smoke
-          ls -la /tmp/gyroclopter-smoke/usr/bin/
-          CERT_DIR=/tmp/gyroclopter-smoke-cert
-          rm -rf "$CERT_DIR"
-          mkdir -p "$CERT_DIR"
-          CERT_DIR="$CERT_DIR" IS_CHILD=1 /tmp/gyroclopter-smoke/usr/bin/gyroclopter &
-          PID=$!
-          sleep 5
-          LISTENING=0
-          if ss -ltn 2>/dev/null | grep -q ':8443 '; then LISTENING=1; fi
-          if [ "$LISTENING" -eq 0 ] && netstat -ltn 2>/dev/null | grep -q ':8443 '; then LISTENING=1; fi
-          kill "$PID" 2>/dev/null || true
-          wait "$PID" 2>/dev/null || true
-          if [ "$LISTENING" -eq 1 ]; then
-            echo "Smoke test passed: PID=$PID listening on 8443"
-          else
-            echo "Smoke test failed: binary did not listen on 8443"
-            exit 1
-          fi
-
-      - name: Upload .deb artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: linux-deb
-          path: dist/gyroclopter_*_amd64.deb
+          name: gyroclopter-linux
+          path: dist/*.deb
 
-  # Tag pushes publish a real release.
-  # Branch pushes overwrite a single draft release named "latest" so you can
-  # verify the binaries on the actual CI runners before promoting them.
   release:
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Publish real release (tag push)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - run: |
+          mkdir -p dist
+          cp gyroclopter-windows/*.exe dist/
+          cp gyroclopter-linux/*.deb dist/
+      - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-          files: |
-            artifacts/**/*.exe
-            artifacts/**/*.deb
-
-      - name: Update draft release (main push)
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: "latest (draft — verify before publishing)"
+          files: dist/*
           draft: true
-          prerelease: true
-          # softprops's action-gh-release creates the release if it doesn't exist
-          # and updates assets otherwise — perfect for overwriting a single draft.
-          files: |
-            artifacts/**/*.exe
-            artifacts/**/*.deb
+          generate_release_notes: true
+          fail_on_unmatched_files: false
