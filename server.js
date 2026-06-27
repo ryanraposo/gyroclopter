@@ -8,8 +8,8 @@
  * - Terminal-based QR code for easy mobile pairing.
  */
 
-// Force a console window on Windows
-if (process.platform === 'win32' && !process.env.IS_CHILD) {
+// Force a console window on Windows when run directly.
+if (require.main === module && process.platform === 'win32' && !process.env.IS_CHILD) {
     const { spawn } = require('child_process');
     spawn('cmd', ['/c', 'start', 'cmd', '/k', process.argv[0], ...process.argv.slice(1)], {
         detached: true,
@@ -83,65 +83,149 @@ async function getCertificates() {
 
 /**
  * Windows-specific mouse controller using PowerShell and P/Invoke.
+ *
+ * The script is written to a temporary .ps1 file and executed with
+ * `-File` so PowerShell keeps stdin open for the command loop. The
+ * script announces "READY" on stdout once the P/Invoke type is loaded
+ * and the command loop is running; commands are only forwarded after
+ * that signal arrives to avoid losing them during startup.
  */
 class WindowsMouseController {
     constructor() {
         this.process = null;
+        this.ready = false;
+        this.queue = [];
+        this.scriptPath = null;
         if (os.platform() === 'win32') {
             this.init();
         }
     }
 
+    buildScript() {
+        return [
+            '$ErrorActionPreference = \'Stop\'',
+            'try {',
+            '  Add-Type -Namespace Gyroclopter -Name WinMouse -MemberDefinition @\'',
+            '[DllImport("user32.dll")]',
+            'public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);',
+            '\'@',
+            '  [Console]::Out.WriteLine("READY")',
+            '  [Console]::Out.Flush()',
+            '  while ($true) {',
+            '    $line = [Console]::In.ReadLine()',
+            '    if ($null -eq $line) { break }',
+            '    if ($line -eq \'exit\') { break }',
+            '    try {',
+            '      $parts = $line -split \' \'',
+            '      switch ($parts[0]) {',
+            '        \'MOVE\'        { [Gyroclopter.WinMouse]::mouse_event(0x0001, [int]$parts[1], [int]$parts[2], 0, 0) }',
+            '        \'LEFT_DOWN\'   { [Gyroclopter.WinMouse]::mouse_event(0x0002, 0, 0, 0, 0) }',
+            '        \'LEFT_UP\'     { [Gyroclopter.WinMouse]::mouse_event(0x0004, 0, 0, 0, 0) }',
+            '        \'CLICK_RIGHT\' { [Gyroclopter.WinMouse]::mouse_event(0x0008 -bor 0x0010, 0, 0, 0, 0) }',
+            '        \'SCROLL\'      { [Gyroclopter.WinMouse]::mouse_event(0x0800, 0, 0, [int]$parts[1], 0) }',
+            '      }',
+            '    } catch {',
+            '      [Console]::Error.WriteLine(("ERR " + $_.Exception.Message))',
+            '    }',
+            '  }',
+            '} catch {',
+            '  [Console]::Error.WriteLine(("STARTUP_ERR " + $_.Exception.Message))',
+            '  exit 1',
+            '}',
+            ''
+        ].join('\r\n');
+    }
+
     init() {
-        const psScript = `
-            $member = @'
-            [DllImport(\"user32.dll\")]
-            public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
-            '@
-            $type = Add-Type -MemberDefinition $member -Name \"WinMouse\" -PassThru
+        try {
+            const script = this.buildScript();
+            this.scriptPath = path.join(os.tmpdir(), `gyroclopter-mouse-${process.pid}.ps1`);
+            fs.writeFileSync(this.scriptPath, script, 'utf8');
+        } catch (err) {
+            console.error('Failed to write Windows Mouse Controller script:', err);
+            return;
+        }
 
-            while ($true) {
-                $line = [Console]::ReadLine()
-                if ($null -eq $line -or $line -eq \"exit\") { break }
-                try {
-                    $parts = $line -split ' '
-                    $cmd = $parts[0]
-                    
-                    switch ($cmd) {
-                        \"MOVE\"        { [WinMouse]::mouse_event(0x0001, [int]$parts[1], [int]$parts[2], 0, 0) }
-                        \"LEFT_DOWN\"   { [WinMouse]::mouse_event(0x0002, 0, 0, 0, 0) }
-                        \"LEFT_UP\"     { [WinMouse]::mouse_event(0x0004, 0, 0, 0, 0) }
-                        \"CLICK_RIGHT\" { [WinMouse]::mouse_event(0x0008 -bor 0x0010, 0, 0, 0, 0) }
-                        \"SCROLL\"      { [WinMouse]::mouse_event(0x0800, 0, 0, [int]$parts[1], 0) }
-                    }
-                } catch {
-                    // Silently ignore malformed lines
-                }
-            }
-        `;
-
-        this.process = spawn('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', '-'], {
-            stdio: ['pipe', 'pipe', 'ignore']
+        this.process = spawn('powershell.exe', [
+            '-NoProfile',
+            '-ExecutionPolicy', 'Bypass',
+            '-File', this.scriptPath
+        ], {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            windowsHide: true
         });
 
-        this.process.stdin.write(psScript + '\n');
-        
         this.process.on('error', (err) => {
             console.error('Failed to start Windows Mouse Controller:', err);
+            this.ready = false;
+        });
+
+        this.process.stderr.on('data', (chunk) => {
+            const msg = chunk.toString();
+            if (msg.startsWith('STARTUP_ERR')) {
+                console.error('Windows Mouse Controller startup failed:', msg);
+                this.ready = false;
+            } else if (msg.startsWith('ERR ')) {
+                console.error('Windows Mouse Controller command error:', msg);
+            }
+        });
+
+        this.process.on('exit', (code, signal) => {
+            this.ready = false;
+            this.process = null;
+        });
+
+        let stdoutBuffer = '';
+        this.process.stdout.on('data', (chunk) => {
+            stdoutBuffer += chunk.toString();
+            let idx;
+            while ((idx = stdoutBuffer.indexOf('\n')) !== -1) {
+                const line = stdoutBuffer.slice(0, idx).trim();
+                stdoutBuffer = stdoutBuffer.slice(idx + 1);
+                if (line === 'READY') {
+                    this.ready = true;
+                    const pending = this.queue;
+                    this.queue = [];
+                    for (const cmd of pending) {
+                        this.sendCommand(cmd);
+                    }
+                }
+            }
         });
     }
 
     sendCommand(cmd) {
-        if (this.process?.stdin?.writable) {
-            this.process.stdin.write(cmd + '\n');
+        if (!this.process || !this.process.stdin || !this.process.stdin.writable) {
+            return;
         }
+        if (!this.ready) {
+            this.queue.push(cmd);
+            if (this.queue.length > 256) {
+                this.queue.shift();
+            }
+            return;
+        }
+        this.process.stdin.write(cmd + '\n');
     }
 
     dispose() {
         if (this.process) {
-            this.sendCommand('exit');
-            this.process.kill();
+            try {
+                if (this.process.stdin && this.process.stdin.writable) {
+                    this.process.stdin.write('exit\n');
+                }
+            } catch (_) { /* ignore */ }
+            try {
+                this.process.kill();
+            } catch (_) { /* ignore */ }
+            this.process = null;
         }
+        if (this.scriptPath) {
+            try { fs.unlinkSync(this.scriptPath); } catch (_) { /* ignore */ }
+            this.scriptPath = null;
+        }
+        this.ready = false;
+        this.queue = [];
     }
 }
 
