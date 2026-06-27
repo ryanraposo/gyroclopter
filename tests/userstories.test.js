@@ -32,26 +32,32 @@ describe('User Stories', () => {
     if (originalAppDir === undefined) delete process.env.CERT_DIR; else process.env.CERT_DIR = originalAppDir;
   });
 
-  test('getCertificates generates placeholder certificates when none exist', () => {
+  function cleanupCertEnv(tmp) {
+    delete process.env.CERT_DIR;
+    try {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    } catch (_) {}
+  }
+
+  test('getCertificates generates self-signed PEM certificates when none exist', async () => {
     // Use a fresh temporary directory
     const certDir = path.join(os.tmpdir(), 'gyroclopter-cert-test');
     if (fs.existsSync(certDir)) {
       fs.rmSync(certDir, { recursive: true, force: true });
     }
     process.env.CERT_DIR = certDir;
-    const certs = getCertificates();
+    const certs = await getCertificates();
     const keyPath = path.join(certDir, 'key.pem');
     const certPath = path.join(certDir, 'cert.pem');
     expect(fs.existsSync(keyPath)).toBe(true);
     expect(fs.existsSync(certPath)).toBe(true);
     const keyContent = fs.readFileSync(keyPath, 'utf8');
     const certContent = fs.readFileSync(certPath, 'utf8');
-    expect(keyContent).toBe('FAKE-KEY');
-    expect(certContent).toBe('FAKE-CERT');
-    expect(certs.key.toString()).toBe('FAKE-KEY');
-    expect(certs.cert.toString()).toBe('FAKE-CERT');
+    expect(keyContent).toContain('-----BEGIN PRIVATE KEY-----');
+    expect(certContent).toContain('-----BEGIN CERTIFICATE-----');
+    expect(certs.key.toString()).toContain('-----BEGIN PRIVATE KEY-----');
+    expect(certs.cert.toString()).toContain('-----BEGIN CERTIFICATE-----');
     // Cleanup
-    fs.rmSync(certDir, { recursive: true, force: true });
-    delete process.env.CERT_DIR;
+    cleanupCertEnv(certDir);
   });
 });

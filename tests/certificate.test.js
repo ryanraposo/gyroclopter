@@ -9,7 +9,7 @@ const { getCertificates, ensureAppDir } = require('../server');
 describe('Gyroclopter server modules', () => {
   // No setup needed; server handles certificate directory creation.
 
-  test('generates a new certificate when files are missing', () => {
+  test('generates a new certificate when files are missing', async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gyroclopter-verify-'));
     const keyPath = path.join(tmp, 'key.pem');
     const certPath = path.join(tmp, 'cert.pem');
@@ -19,23 +19,25 @@ describe('Gyroclopter server modules', () => {
     expect(fs.existsSync(certPath)).toBe(false);
 
     process.env.CERT_DIR = tmp;
-    const cert = getCertificates();
+    const cert = await getCertificates();
     expect(fs.existsSync(keyPath)).toBe(true);
     expect(fs.existsSync(certPath)).toBe(true);
     expect(cert.key.toString()).toBeTruthy();
     expect(cert.cert.toString()).toBeTruthy();
   });
 
-  test('reuses existing certificate files and returns matching buffers', () => {
+  test('reuses existing certificate files and returns matching buffers', async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gyroclopter-reuse-'));
-    const keyPath = path.join(tmp, 'key.pem');
-    const certPath = path.join(tmp, 'cert.pem');
-    fs.writeFileSync(keyPath, 'KEY-STUB');
-    fs.writeFileSync(certPath, 'CERT-STUB');
-
     process.env.CERT_DIR = tmp;
-    const cert = getCertificates();
-    expect(cert.key.toString()).toBe('KEY-STUB');
-    expect(cert.cert.toString()).toBe('CERT-STUB');
+
+    // First call generates real certificates.
+    const first = await getCertificates();
+    expect(first.key.toString()).toContain('-----BEGIN');
+    expect(first.cert.toString()).toContain('-----BEGIN');
+
+    // Second call should reuse the files already on disk.
+    const second = await getCertificates();
+    expect(second.key.toString()).toBe(first.key.toString());
+    expect(second.cert.toString()).toBe(first.cert.toString());
   });
 });

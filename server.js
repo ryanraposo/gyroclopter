@@ -46,10 +46,18 @@ function ensureAppDir() {
 }
 
 /**
+ * Checks whether a buffer/string looks like a PEM-encoded key or certificate.
+ */
+function looksLikePem(data) {
+    const text = data.toString();
+    return text.includes('-----BEGIN') && text.includes('-----END');
+}
+
+/**
  * Retrieves existing SSL certificates or generates new ones.
  * Required for mobile browsers to allow access to DeviceOrientation events.
  */
-function getCertificates() {
+async function getCertificates() {
     // Determine the directory for certificates. Allow overriding via CERT_DIR env var for testing or custom deployment.
     const certDir = process.env.CERT_DIR || CONFIG.APP_DIR;
     // Ensure the directory exists.
@@ -58,22 +66,22 @@ function getCertificates() {
     }
     const keyPath = path.join(certDir, 'key.pem');
     const certPath = path.join(certDir, 'cert.pem');
-    // If both files exist, read and return them.
+    // If both files exist and contain valid-looking PEM data, read and return them.
     if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
-        return {
-            key: fs.readFileSync(keyPath),
-            cert: fs.readFileSync(certPath)
-        };
+        const key = fs.readFileSync(keyPath);
+        const cert = fs.readFileSync(certPath);
+        if (looksLikePem(key) && looksLikePem(cert)) {
+            return { key, cert };
+        }
     }
     console.log('\x1b[33m%s\x1b[0m', '🛡️  Generating self-signed SSL certificates for Gyroclopter...');
-    // Generate placeholder certificates when not present.
-    const placeholderKey = 'FAKE-KEY';
-    const placeholderCert = 'FAKE-CERT';
-    fs.writeFileSync(keyPath, placeholderKey);
-    fs.writeFileSync(certPath, placeholderCert);
+    // Generate a self-signed certificate when none is present.
+    const pems = await selfsigned.generate(null, { days: 365 });
+    fs.writeFileSync(keyPath, pems.private);
+    fs.writeFileSync(certPath, pems.cert);
     return {
-        key: placeholderKey,
-        cert: placeholderCert
+        key: Buffer.from(pems.private),
+        cert: Buffer.from(pems.cert)
     };
 }
 
@@ -244,7 +252,7 @@ function getClientHtml() {
 async function main() {
     ensureAppDir();
     
-    const certificates = getCertificates();
+    const certificates = await getCertificates();
     const mouse = new GenericMouseController();
 
     const server = https.createServer(certificates, (req, res) => {
@@ -322,3 +330,10 @@ module.exports = {
   getCertificates,
   ensureAppDir
 };
+
+if (require.main === module) {
+    main().catch((err) => {
+        console.error(err);
+        process.exit(1);
+    });
+}
