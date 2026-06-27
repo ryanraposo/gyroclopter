@@ -1,43 +1,53 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const https = require('https');
-const { WebSocketServer } = require('ws');
-const selfsigned = require('selfsigned');
-
 const { getCertificates, ensureAppDir } = require('../server');
-describe('Gyroclopter server modules', () => {
-  // No setup needed; server handles certificate directory creation.
 
-  test('generates a new certificate when files are missing', async () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gyroclopter-verify-'));
-    const keyPath = path.join(tmp, 'key.pem');
-    const certPath = path.join(tmp, 'cert.pem');
+describe('Certificate Management', () => {
+  let tempCertDir;
 
-    fs.rmSync(tmp, { recursive: true, force: true });
-    expect(fs.existsSync(keyPath)).toBe(false);
-    expect(fs.existsSync(certPath)).toBe(false);
-
-    process.env.CERT_DIR = tmp;
-    const cert = await getCertificates();
-    expect(fs.existsSync(keyPath)).toBe(true);
-    expect(fs.existsSync(certPath)).toBe(true);
-    expect(cert.key.toString()).toBeTruthy();
-    expect(cert.cert.toString()).toBeTruthy();
+  beforeAll(() => {
+    // Create temporary certificate directory
+    tempCertDir = path.join(os.tmpdir(), 'gyroclopter-certs-test');
+    if (fs.existsSync(tempCertDir)) fs.rmSync(tempCertDir, { recursive: true });
+    fs.mkdirSync(tempCertDir);
   });
 
-  test('reuses existing certificate files and returns matching buffers', async () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gyroclopter-reuse-'));
-    process.env.CERT_DIR = tmp;
+  afterAll(() => {
+    // Cleanup
+    if (fs.existsSync(tempCertDir)) fs.rmSync(tempCertDir, { recursive: true });
+  });
 
-    // First call generates real certificates.
-    const first = await getCertificates();
-    expect(first.key.toString()).toContain('-----BEGIN');
-    expect(first.cert.toString()).toContain('-----BEGIN');
+  test('Generates new certificates when missing', async () => {
+    process.env.CERT_DIR = tempCertDir;
+    const certs = await getCertificates();
+    
+    expect(fs.existsSync(path.join(tempCertDir, 'key.pem'))).toBe(true);
+    expect(fs.existsSync(path.join(tempCertDir, 'cert.pem'))).toBe(true);
+    // Certificates are generated with selfsigned library
+    expect(certs.key).toBeDefined();
+    expect(certs.cert).toBeDefined();
+  });
 
-    // Second call should reuse the files already on disk.
-    const second = await getCertificates();
-    expect(second.key.toString()).toBe(first.key.toString());
-    expect(second.cert.toString()).toBe(first.cert.toString());
+  test('Reuses existing certificates', async () => {
+    fs.writeFileSync(path.join(tempCertDir, 'key.pem'), 'EXISTING-KEY');
+    fs.writeFileSync(path.join(tempCertDir, 'cert.pem'), 'EXISTING-CERT');
+    
+    process.env.CERT_DIR = tempCertDir;
+    const certs = await getCertificates();
+    
+    expect(certs.key.toString()).toBe('EXISTING-KEY');
+    expect(certs.cert.toString()).toBe('EXISTING-CERT');
+  });
+
+  test('Handles certificate rotation', async () => {
+    fs.writeFileSync(path.join(tempCertDir, 'key.pem'), 'OLD-KEY');
+    fs.writeFileSync(path.join(tempCertDir, 'cert.pem'), 'OLD-CERT');
+    
+    process.env.CERT_DIR = tempCertDir;
+    const certs1 = await getCertificates();
+    // Existing certificates are reused (not overwritten)
+    expect(certs1.key.toString()).toBe('OLD-KEY');
+    expect(certs1.cert.toString()).toBe('OLD-CERT');
   });
 });

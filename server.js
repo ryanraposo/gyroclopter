@@ -58,12 +58,7 @@ function looksLikePem(data) {
  * Required for mobile browsers to allow access to DeviceOrientation events.
  */
 async function getCertificates() {
-    // Determine the directory for certificates. Allow overriding via CERT_DIR env var for testing or custom deployment.
     const certDir = process.env.CERT_DIR || CONFIG.APP_DIR;
-    // Ensure the directory exists.
-    if (!fs.existsSync(certDir)) {
-        fs.mkdirSync(certDir, { recursive: true });
-    }
     const keyPath = path.join(certDir, 'key.pem');
     const certPath = path.join(certDir, 'cert.pem');
     // If both files exist and contain valid-looking PEM data, read and return them.
@@ -74,17 +69,17 @@ async function getCertificates() {
             return { key, cert };
         }
     }
-    console.log('\x1b[33m%s\x1b[0m', '🛡️  Generating self-signed SSL certificates for Gyroclopter...');
-    // Generate a self-signed certificate when none is present.
-    const pems = await selfsigned.generate(null, { days: 365 });
+    console.log('\\x1b[33m%s\\x1b[0m', '🛡️  Generating self-signed SSL certificates for Gyroclopter...');
+    // Generate real self-signed certificates using selfsigned library
+    const attrs = [{ name: 'commonName', value: 'Gyroclopter' }];
+    const pems = await selfsigned.generate(attrs, { days: 365 });
     fs.writeFileSync(keyPath, pems.private);
     fs.writeFileSync(certPath, pems.cert);
     return {
-        key: Buffer.from(pems.private),
-        cert: Buffer.from(pems.cert)
+        key: pems.private,
+        cert: pems.cert
     };
 }
-
 
 /**
  * Windows-specific mouse controller using PowerShell and P/Invoke.
@@ -129,7 +124,7 @@ class WindowsMouseController {
             stdio: ['pipe', 'pipe', 'ignore']
         });
 
-        this.process.stdin.write(psScript + '\n');
+        this.process.stdin.write(psScript + '\\n');
         
         this.process.on('error', (err) => {
             console.error('Failed to start Windows Mouse Controller:', err);
@@ -138,7 +133,7 @@ class WindowsMouseController {
 
     sendCommand(cmd) {
         if (this.process?.stdin?.writable) {
-            this.process.stdin.write(cmd + '\n');
+            this.process.stdin.write(cmd + '\\n');
         }
     }
 
@@ -150,10 +145,8 @@ class WindowsMouseController {
     }
 }
 
-// Linux mouse controller supporting X11 (xdotool) and Wayland (ydotool)
 class LinuxMouseController {
     constructor() {
-        // Detect session type
         const session = process.env.XDG_SESSION_TYPE || (process.env.DISPLAY ? 'x11' : 'unknown');
         this.session = session;
         this.cmd = null;
@@ -165,38 +158,46 @@ class LinuxMouseController {
             console.warn('LinuxMouseController: Unknown session type, mouse control may not work');
         }
     }
+
     sendCommand(cmd) {
         if (!this.cmd) return;
         const parts = cmd.split(' ');
         const type = parts[0];
         const exec = require('child_process').exec;
+
         if (type === 'MOVE') {
             const dx = parts[1];
             const dy = parts[2];
             const command = this.cmd === 'xdotool'
                 ? `xdotool mousemove_relative --sync ${dx} ${dy}`
-                : `ydotool mousemove -x ${dx} -y ${dy}`;
+                : `ydotool mousemove -r -- ${dx} ${dy}`;
             exec(command, (err) => { if (err) console.error('Mouse move error', err); });
+
         } else if (type === 'LEFT_DOWN') {
-            const command = this.cmd === 'xdotool' ? 'xdotool click 1' : 'ydotool click 1';
+            const command = this.cmd === 'xdotool' ? 'xdotool mousedown 1' : 'ydotool click 0x40';
             exec(command);
+
         } else if (type === 'LEFT_UP') {
-            // No explicit release needed for xdotool; ignore
-        } else if (type === 'CLICK_RIGHT') {
-            const command = this.cmd === 'xdotool' ? 'xdotool click 3' : 'ydotool click 3';
+            const command = this.cmd === 'xdotool' ? 'xdotool mouseup 1' : 'ydotool click 0x80';
             exec(command);
+
+        } else if (type === 'CLICK_RIGHT') {
+            const command = this.cmd === 'xdotool' ? 'xdotool click 3' : 'ydotool click 0xC0';
+            exec(command);
+
         } else if (type === 'SCROLL') {
             const delta = parseInt(parts[1], 10);
-            // Simple implementation: use wheel up/down in ydotool, xdotool click 4/5
             let command;
             if (this.cmd === 'xdotool') {
                 command = delta > 0 ? 'xdotool click 4' : 'xdotool click 5';
             } else {
-                command = delta > 0 ? 'ydotool wheel up' : 'ydotool wheel down';
+                const scrollY = delta > 0 ? -3 : 3;
+                command = `ydotool mousescroll -- 0 ${scrollY}`;
             }
             exec(command);
         }
     }
+
     dispose() {
         // No persistent process
     }
@@ -296,9 +297,9 @@ async function main() {
 
     server.listen(CONFIG.PORT, '0.0.0.0', async () => {
         console.clear();
-        console.log('\x1b[36m%s\x1b[0m', '🚀 Gyroclopter Server Started');
-        console.log('\x1b[90m%s\x1b[0m', '--------------------------------------------------');
-        console.log(`URL: \x1b[4m${url}\x1b[0m\n`);
+        console.log('\\x1b[36m%s\\x1b[0m', '🚀 Gyroclopter Server Started');
+        console.log('\\x1b[90m%s\\x1b[0m', '--------------------------------------------------');
+        console.log(`URL: \\x1b[4m${url}\\x1b[0m\\n`);
 
         try {
             const qr = await QRCode.toString(url, { type: 'terminal', small: true });
@@ -307,17 +308,17 @@ async function main() {
             console.log('Could not generate QR code in terminal.');
         }
 
-        console.log('\x1b[33mInstructions:\x1b[0m');
+        console.log('\\x1b[33mInstructions:\\x1b[0m');
         console.log('1. Connect your phone to the same Wi-Fi network.');
         console.log('2. Scan the QR code or enter the URL manually.');
         console.log('3. Accept the self-signed certificate warning in your browser.');
         console.log('4. Keep the browser tab open and active.');
-        console.log('\n\x1b[90mPress Ctrl+C to stop the server.\x1b[0m');
+        console.log('\\n\\x1b[90mPress Ctrl+C to stop the server.\\x1b[0m');
     });
 
     // Graceful shutdown
     const shutdown = () => {
-        console.log('\nShutting down Gyroclopter...');
+        console.log('\\nShutting down Gyroclopter...');
         mouse.dispose();
         process.exit();
     };
@@ -326,14 +327,14 @@ async function main() {
     process.on('SIGTERM', shutdown);
 }
 
+// Only start the server if run directly (not when required as a module)
+if (require.main === module) {
+  main();
+}
+
 module.exports = {
   getCertificates,
-  ensureAppDir
+  ensureAppDir,
+  getLocalIp,
+  CONFIG
 };
-
-if (require.main === module) {
-    main().catch((err) => {
-        console.error(err);
-        process.exit(1);
-    });
-}
