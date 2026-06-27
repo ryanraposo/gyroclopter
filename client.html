@@ -102,6 +102,9 @@
             position: relative;
             background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
             transition: border-color 0.2s;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            cursor: pointer;
         }
         .main-pad.active {
             border-color: var(--accent);
@@ -130,6 +133,9 @@
             align-items: center;
             justify-content: center;
             transition: transform 0.1s, background 0.1s;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            cursor: pointer;
         }
         .btn:active {
             transform: scale(0.95);
@@ -322,19 +328,35 @@
 
         els.leftClick.ontouchstart = (e) => { e.preventDefault(); send({ type: 'down' }); };
         els.leftClick.ontouchend = (e) => { e.preventDefault(); send({ type: 'up' }); };
-        els.rightClick.ontouchstart = (e) => { e.preventDefault(); send({ type: 'right' }); };
+        els.leftClick.onmousedown = () => send({ type: 'down' });
+        els.leftClick.onmouseup = () => send({ type: 'up' });
+        els.leftClick.onmouseleave = () => send({ type: 'up' });
+
+        els.rightClick.onpointerdown = (e) => { e.preventDefault(); send({ type: 'right' }); };
 
         let lastY = 0;
-        els.scrollPad.ontouchstart = (e) => { e.preventDefault(); lastY = e.touches[0].clientY; };
-        els.scrollPad.ontouchmove = (e) => {
+        let isScrolling = false;
+        els.scrollPad.onpointerdown = (e) => {
             e.preventDefault();
-            const y = e.touches[0].clientY;
+            isScrolling = true;
+            lastY = e.clientY;
+            els.scrollPad.setPointerCapture(e.pointerId);
+        };
+        els.scrollPad.onpointermove = (e) => {
+            if (!isScrolling) return;
+            e.preventDefault();
+            const y = e.clientY;
             const delta = lastY - y;
             if (Math.abs(delta) > 5) {
                 send({ type: 'scroll', delta: Math.sign(delta) * 120 });
                 lastY = y;
             }
         };
+        els.scrollPad.onpointerup = (e) => {
+            isScrolling = false;
+            els.scrollPad.releasePointerCapture(e.pointerId);
+        };
+        els.scrollPad.onpointercancel = () => { isScrolling = false; };
     </script>
 </body>
 </html>

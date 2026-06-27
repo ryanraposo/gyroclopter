@@ -29,25 +29,27 @@ describe('Certificate Management', () => {
     expect(certs.cert).toBeDefined();
   });
 
-  test('Reuses existing certificates', async () => {
-    fs.writeFileSync(path.join(tempCertDir, 'key.pem'), 'EXISTING-KEY');
-    fs.writeFileSync(path.join(tempCertDir, 'cert.pem'), 'EXISTING-CERT');
+  test('Reuses existing valid PEM certificates', async () => {
+    fs.writeFileSync(path.join(tempCertDir, 'key.pem'), '-----BEGIN PRIVATE KEY-----\nEXISTING-KEY\n-----END PRIVATE KEY-----');
+    fs.writeFileSync(path.join(tempCertDir, 'cert.pem'), '-----BEGIN CERTIFICATE-----\nEXISTING-CERT\n-----END CERTIFICATE-----');
     
     process.env.CERT_DIR = tempCertDir;
     const certs = await getCertificates();
     
-    expect(certs.key.toString()).toBe('EXISTING-KEY');
-    expect(certs.cert.toString()).toBe('EXISTING-CERT');
+    expect(certs.key.toString()).toContain('EXISTING-KEY');
+    expect(certs.cert.toString()).toContain('EXISTING-CERT');
   });
 
-  test('Handles certificate rotation', async () => {
+  test('Handles certificate rotation (invalid PEM is regenerated)', async () => {
     fs.writeFileSync(path.join(tempCertDir, 'key.pem'), 'OLD-KEY');
     fs.writeFileSync(path.join(tempCertDir, 'cert.pem'), 'OLD-CERT');
     
     process.env.CERT_DIR = tempCertDir;
     const certs1 = await getCertificates();
-    // Existing certificates are reused (not overwritten)
-    expect(certs1.key.toString()).toBe('OLD-KEY');
-    expect(certs1.cert.toString()).toBe('OLD-CERT');
+    // Invalid PEM certificates are regenerated (not reused)
+    expect(certs1.key.toString()).toContain('BEGIN PRIVATE KEY');
+    expect(certs1.cert.toString()).toContain('BEGIN CERTIFICATE');
+    expect(certs1.key.toString()).not.toContain('OLD-KEY');
+    expect(certs1.cert.toString()).not.toContain('OLD-CERT');
   });
 });
