@@ -16,7 +16,7 @@ describe('Gyroclopter Smoke Tests', () => {
   test('Server serves client HTML', async () => {
     server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'));
+      res.end(fs.readFileSync(path.join(__dirname, '..', 'client.html'), 'utf8'));
     });
 
     await new Promise(resolve => server.listen(0, () => resolve()));

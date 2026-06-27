@@ -33,7 +33,7 @@ describe('User Stories', () => {
     const certs = await getCertificates();
     const server = require('https').createServer(certs, (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'));
+      res.end(fs.readFileSync(path.join(__dirname, '..', 'client.html'), 'utf8'));
     });
 
     const wss = new WebSocketServer({ server });
