@@ -16,9 +16,13 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "jest"
+    "test": "jest",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
   },
   "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^26.15.3",
     "jest": "^29.7.0"
   },
   "dependencies": {
