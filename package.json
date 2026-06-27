@@ -2,6 +2,10 @@
   "name": "gyroclopter",
   "version": "0.2.0",
   "description": "CLI, QR, LAN-exposed gyroscopic remote pointer for Windows/iOS with SSL.",
+  "author": {
+    "name": "ryanraposo",
+    "email": "raposo.ryan@gmail.com"
+  },
   "homepage": "https://github.com/ryanraposo/gyroclopter#readme",
   "bugs": {
     "url": "https://github.com/ryanraposo/gyroclopter/issues"
