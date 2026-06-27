@@ -17,18 +17,35 @@
   "license": "ISC",
   "type": "commonjs",
   "main": "server.js",
+  "desktopName": "Gyroclopter",
   "scripts": {
     "start": "node server.js",
     "test": "jest",
+    "icons:generate": "node scripts/generate-icons.js && node scripts/generate-ico.js",
+    "prepack": "npm run icons:generate",
+    "predist": "npm run icons:generate",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
   "build": {
     "appId": "com.ryanraposo.gyroclopter",
+    "productName": "Gyroclopter",
     "linux": {
       "target": [
         "deb"
-      ]
+      ],
+      "category": "Utility",
+      "icon": "build/icons",
+      "syncDesktopName": true,
+      "synopsis": "Gyroscopic air mouse that turns your phone into a wireless remote pointer.",
+      "description": "Gyroclopter turns a mobile phone into a wireless gyroscopic air mouse for a desktop computer. It runs a tiny HTTPS/WebSocket server on the desktop and serves a full-screen mobile web client.",
+      "desktop": {
+        "entry": {
+          "Name": "Gyroclopter",
+          "Comment": "Gyroscopic air mouse that turns your phone into a wireless remote pointer.",
+          "Categories": "Utility;"
+        }
+      }
     },
     "win": {
       "target": [
@@ -38,7 +55,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "icon": "build/icon.ico"
     }
   },
   "devDependencies": {

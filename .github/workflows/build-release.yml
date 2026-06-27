@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate icons
+        run: npm run icons:generate
+
       - name: Build .deb
         run: npx electron-builder --linux deb --publish never
 
@@ -57,6 +60,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Generate icons
+        run: npm run icons:generate
 
       - name: Build .exe
         run: npx electron-builder --win nsis --publish never
