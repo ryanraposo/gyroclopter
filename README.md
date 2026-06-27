@@ -1,28 +1,47 @@
 # Gyroclopter 🚁
 
-A LAN‑based **air mouse** that lets you control a Windows (or any desktop) cursor using the gyroscope of a mobile device. The project consists of a small HTTPS server that serves a web client, a QR‑code for easy pairing, and a Windows‑specific mouse controller implemented in PowerShell.
+Turn your phone into a wireless gyroscopic air mouse for your desktop.
+
+Gyroclopter runs a tiny HTTPS/WebSocket server on your computer and serves a full-screen mobile web client. Point your phone at the screen, tilt to steer, tap to click, and swipe to scroll — no app store installs required.
+
+---
 
 ## Table of Contents
+
 - [Features](#features)
 - [Quick Start](#quick-start)
+- [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Mobile Controls](#mobile-controls)
 - [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
 - [Testing](#testing)
 - [Project Structure](#project-structure)
 - [Contributing](#contributing)
 - [License](#license)
 
+---
+
 ## Features
-- **Low‑latency mouse control** via a WebSocket connection.
-- **Automatic self‑signed SSL certificate** generation so mobile browsers can access device orientation events.
-- **Windows‑only mouse injection** using a lightweight PowerShell script (no native Node dependencies).
-- **Terminal QR‑code** for fast pairing of a mobile device on the same LAN.
-- **Cross‑platform server** (Linux/macOS/Windows) – only the mouse part is Windows‑specific.
+
+- **Gyroscopic air mouse** — control the cursor by tilting your phone.
+- **Zero-install mobile client** — works in any modern mobile browser.
+- **Low-latency WebSocket** connection between phone and desktop.
+- **Automatic self-signed SSL certificates** so iOS/Android browsers allow motion sensor access over HTTPS.
+- **Terminal QR code** for instant pairing on the same Wi-Fi network.
+- **Cross-platform server** — runs on Windows, Linux, and macOS.
+- **Native mouse injection**:
+  - Windows: PowerShell with P/Invoke (no extra dependencies).
+  - Linux: `xdotool` (X11) or `ydotool` (Wayland).
+- **On-device calibration** and adjustable sensitivity.
+
+---
 
 ## Quick Start
+
 ```bash
-# Clone the repository (if you haven't already)
+# Clone the repository
 git clone https://github.com/ryanraposo/gyroclopter.git
 cd gyroclopter
 
@@ -32,52 +51,101 @@ npm install
 # Start the server
 npm start
 ```
-The server will output a QR‑code in your terminal. Scan it with your phone’s browser (same Wi‑Fi network) and accept the self‑signed certificate warning. The page will request motion sensor permission; grant it and start moving your phone to control the mouse.
 
-## Installation
-### Prerequisites
-- **Node.js** (>= 14) and **npm**
-- **PowerShell** (Windows) – required for the mouse controller.
+A QR code appears in the terminal. Scan it with your phone, accept the self-signed certificate warning, grant motion permission, and calibrate. You’re now controlling the mouse.
+
+---
+
+## Requirements
+
+### Server (desktop)
+
+- **Node.js 16+** and **npm**
+- Same Wi-Fi network as your phone
+
+### Mouse control
+
+| Platform | Requirement |
+|----------|-------------|
+| Windows  | PowerShell (built-in) |
+| Linux    | `xdotool` for X11 or `ydotool` for Wayland |
+| macOS    | Server runs; mouse injection not yet implemented |
+
+Install the Linux tools on Ubuntu/Debian with:
 
 ```bash
-# Install Node.js (example for Ubuntu)
-sudo apt-get update && sudo apt-get install -y nodejs npm
+sudo apt update
+sudo apt install xdotool        # X11
+# or
+sudo apt install ydotool        # Wayland
 ```
 
-### Install Project Dependencies
+### Client (mobile)
+
+- A modern mobile browser
+- HTTPS access (required for `devicemotion` events)
+- Motion sensor permission
+
+---
+
+## Installation
+
 ```bash
 npm install
 ```
-All required packages are listed in `package.json`:
-- `qrcode` – renders a QR‑code in the terminal.
-- `selfsigned` – creates placeholder SSL certificates.
-- `ws` – WebSocket server.
-- `jest` – testing framework (dev dependency).
+
+Dependencies are listed in `package.json`:
+
+| Package      | Purpose                                   |
+|--------------|-------------------------------------------|
+| `qrcode`     | Render the pairing QR code in the terminal |
+| `selfsigned` | Generate self-signed SSL certificates     |
+| `ws`         | WebSocket server                          |
+| `jest`       | Test framework (dev dependency)           |
+
+---
 
 ## Usage
-### Starting the Server
+
+### Start the server
+
 ```bash
 npm start
 ```
-The server listens on **HTTPS port 8443** by default. It creates an application directory in the OS temporary folder (`/tmp/gyroclopter` on Linux) where it stores `key.pem` and `cert.pem`. You can override this directory with the `CERT_DIR` environment variable.
 
-### Environment Variables
-| Variable | Description |
-|----------|-------------|
-| `CERT_DIR` | Path to a directory where the SSL key and certificate will be stored. Useful for testing or custom deployments. |
-| `IS_CHILD` | Internal flag used to spawn a new console window on Windows. |
+The server listens on `https://0.0.0.0:8443` by default and prints a QR code.
 
-### Controlling the Mouse (Windows only)
-The server spawns a PowerShell child process that listens on stdin for commands:
-- `MOVE <dx> <dy>` – moves the cursor.
-- `LEFT_DOWN` / `LEFT_UP` – mouse button press/release.
-- `CLICK_RIGHT` – right‑click.
-- `SCROLL <delta>` – mouse wheel.
+### Pair your phone
 
-These commands are sent automatically by the web client based on device orientation data.
+1. Connect your phone to the same Wi-Fi network as the desktop.
+2. Scan the QR code or open the printed URL.
+3. Accept the self-signed certificate warning.
+4. Tap **Allow & Connect** and grant motion access if prompted.
+5. Tap **Calibrate** while pointing your phone at the cursor.
+
+### Stop the server
+
+Press `Ctrl+C` in the terminal.
+
+---
+
+## Mobile Controls
+
+| Control            | Action                                            |
+|--------------------|---------------------------------------------------|
+| Tilt phone         | Move the cursor                                   |
+| Tap main pad       | Toggle motion control on/off                      |
+| Hold **LEFT**      | Left mouse button down/up                         |
+| Tap **RIGHT**      | Right-click                                       |
+| Swipe **SCROLL**   | Scroll wheel up/down                              |
+| Sensitivity slider | Adjust cursor speed (1–25)                        |
+
+---
 
 ## Configuration
-The default configuration lives in `server.js` under the `CONFIG` constant:
+
+Default settings live in `server.js`:
+
 ```js
 const CONFIG = {
     PORT: 8443,
@@ -85,42 +153,87 @@ const CONFIG = {
     MOUSE_SENSITIVITY_MULTIPLIER: 1.2
 };
 ```
-You can change these values by editing `server.js` or by setting the corresponding environment variables before launching the server.
+
+| Environment Variable | Description |
+|----------------------|-------------|
+| `CERT_DIR`           | Directory where `key.pem` and `cert.pem` are stored. Defaults to the OS temp directory. |
+| `IS_CHILD`           | Internal flag used to spawn a visible console window on Windows. |
+
+---
+
+## Troubleshooting
+
+### Phone can’t reach the server
+
+- Make sure both devices are on the same local network.
+- Check that a firewall is not blocking port `8443`.
+- Try navigating to the URL manually instead of scanning the QR code.
+
+### Motion permission is denied
+
+- iOS requires HTTPS and an explicit user gesture to request `devicemotion` access.
+- Ensure you tapped **Allow & Connect** and granted permission when the browser asked.
+
+### Self-signed certificate warning
+
+This is expected. Mobile browsers require HTTPS for motion sensors, so Gyroclopter generates a local certificate. You can safely proceed past the warning.
+
+### Linux mouse doesn’t move
+
+- Verify you installed `xdotool` (X11) or `ydotool` (Wayland).
+- Check your session type: `echo $XDG_SESSION_TYPE`.
+
+---
 
 ## Testing
-The project uses **Jest** for unit tests.
+
 ```bash
 npm test
 ```
-Relevant test files:
-- `tests/userstories.test.js` – verifies that the application directory is created and that placeholder certificates are generated when missing.
-- `tests/certificate.test.js` – checks certificate generation and reuse.
-- `tests/smoke.test.js` – sanity checks for HTML extraction and temporary directory handling.
 
-All tests should pass on a fresh clone.
+Test files:
+
+- `tests/certificate.test.js` — certificate generation and reuse
+- `tests/userstories.test.js` — WebSocket command flow
+- `tests/smoke.test.js` — server smoke tests
+- `tests/dummy.test.js` — utility functions
+
+---
 
 ## Project Structure
+
 ```
 gyroclopter/
-├─ server.js            # Main server entry point (exports getCertificates, ensureAppDir)
-├─ client.html          # Web client served to mobile devices
-├─ package.json         # npm manifest (scripts, dependencies)
-├─ README.md            # <-- this file
-└─ tests/
-   ├─ userstories.test.js
-   ├─ certificate.test.js
-   └─ smoke.test.js
+├── server.js            # Main HTTPS/WebSocket server and mouse controllers
+├── client.html          # Mobile web client
+├── package.json         # npm manifest
+├── package-lock.json    # Locked dependency tree
+├── CHANGELOG.md         # Release history
+├── tests/               # Jest test suite
+│   ├── certificate.test.js
+│   ├── userstories.test.js
+│   ├── smoke.test.js
+│   └── dummy.test.js
+└── .github/workflows/   # GitHub Actions
+    └── exe-generation.yml
 ```
 
-## Contributing
-Contributions are welcome! Please follow these steps:
-1. Fork the repository.
-2. Create a new branch for your feature or bugfix.
-3. Write tests for any new functionality.
-4. Ensure `npm test` passes.
-5. Open a pull request describing your changes.
+---
 
-When contributing, keep the existing coding style (CommonJS modules, 2‑space indentation) and update the documentation if you add new features.
+## Contributing
+
+Contributions are welcome.
+
+1. Fork the repository.
+2. Create a branch for your feature or bug fix.
+3. Add tests for new functionality.
+4. Make sure `npm test` passes.
+5. Open a pull request describing the change.
+
+Please follow the existing style: CommonJS modules, 2-space indentation, and clear commit messages.
+
+---
 
 ## License
-This project is licensed under the **ISC** license – see the `LICENSE` file in the repository.
+
+This project is licensed under the [ISC License](https://opensource.org/licenses/ISC).
