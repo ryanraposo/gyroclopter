@@ -26,6 +26,10 @@ Gyroclopter is a Node.js application that turns a mobile phone into a wireless g
 | SSL certificates | `selfsigned` (^5.5.0) |
 | Testing | Jest (^29.7.0) — no configuration file, uses defaults |
 | Client | Pure HTML/CSS/JS (no frameworks, no build step) |
+| Packaging | `@yao-pkg/pkg` (`^6.20.0`) — single-file Node binary |
+| Icons | `pngjs` (`^7.0.0`) — custom ICO writer (no external image tooling) |
+| Windows installer | NSIS 3.10 (`makensis.exe`) |
+| Linux package | `dpkg-deb` (Debian packaging tool) |
 
 **Platform-specific mouse injection:**
 - **Windows**: PowerShell with P/Invoke to `user32.dll` `mouse_event` (no extra Node dependencies).
@@ -41,19 +45,23 @@ Gyroclopter is a Node.js application that turns a mobile phone into a wireless g
 gyroclopter/
 ├── server.js                 # Main entry point — HTTPS/WebSocket server + mouse controllers
 ├── client.html               # Single-file mobile web client (HTML/CSS/JS)
+├── installer.nsi             # NSIS installer script (Windows)
+├── pkg.config.cjs            # @yao-pkg/pkg configuration (assets list)
 ├── package.json              # npm manifest
 ├── package-lock.json         # Locked dependency tree
 ├── CHANGELOG.md              # Release history (Keep a Changelog format)
 ├── README.md                 # Human-facing documentation
-├── tests/                    # Jest test suite
-│   ├── certificate.test.js   # Certificate generation and reuse tests
-│   ├── dummy.test.js           # Utility function tests (getLocalIp, ensureAppDir)
-│   ├── smoke.test.js           # Server smoke tests (HTML serving, WebSocket commands)
-│   └── userstories.test.js     # WebSocket user story / command flow tests
-├── .github/
-│   └── workflows/
-│       └── exe-generation.yml  # Manual GitHub Actions workflow for Windows EXE build
-└── .gitignore                # Git ignore rules
+├── .gitignore                # Git ignore rules
+├── scripts/                  # Build tooling (all Node.js)
+│   ├── build-binary.js       # Wraps @yao-pkg/pkg to produce single-file .exe / linux binary
+│   ├── build-icon.js         # Pure-JS ICO + PNG generator from gyroclopter-512.png
+│   ├── build-installer-nsi.js# Locates makensis and runs it against installer.nsi
+│   └── build-deb.js          # Assembles dpkg-deb layout and emits .deb
+└── tests/                    # Jest test suite
+    ├── certificate.test.js   # Certificate generation and reuse tests
+    ├── dummy.test.js         # Utility function tests (getLocalIp, ensureAppDir)
+    ├── smoke.test.js         # Server smoke tests (HTML serving, WebSocket commands)
+    └── userstories.test.js   # WebSocket user story / command flow tests
 ```
 
 **Important notes on file organization:**
@@ -74,9 +82,16 @@ npm start
 
 # Run the Jest test suite
 npm test
+
+# Build Windows installer + Linux .deb (release pipeline)
+npm run build
 ```
 
-There is no build step, no linting, and no transpilation. The project runs directly from source.
+The Windows job in `.github/workflows/build-release.yml` produces `dist/gyroclopter-setup-<version>.exe` via NSIS.
+The Linux job produces `dist/gyroclopter_<version>_amd64.deb` via `dpkg-deb`.
+Both wrap the single-file binary emitted by `@yao-pkg/pkg`.
+
+There is no linting or transpilation. The project runs directly from source.
 
 ---
 
@@ -145,8 +160,7 @@ Tests are written in Jest and live in the `tests/` directory.
 
 - **Port**: Hardcoded to `8443` in `CONFIG`.
 - **SSL**: Auto-generated self-signed certificates stored in the OS temp directory (or `CERT_DIR`).
-- **GitHub Actions**: `.github/workflows/exe-generation.yml` is a manual workflow for building a Windows executable. It is currently a placeholder — the actual `npx pkg` command is commented out.
-- **No CI for tests**: The GitHub Actions workflow does not run `npm test`.
+- **No CI for tests**: There is currently no automated CI configured.
 
 ---
 

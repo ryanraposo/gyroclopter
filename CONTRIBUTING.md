@@ -54,11 +54,15 @@ PRs should represent a release-ready state, not partial work.
 
 Once merged, the CI pipeline automatically:
 
-* Builds the .deb package
+* Runs the Jest test suite on every push and PR
 * Reads version from package.json
-* Creates a GitHub release
-* Attaches build artifacts
-* Publishes release notes from CHANGELOG.md
+* Builds the Windows NSIS installer (`dist/gyroclopter-setup-<version>.exe`) on Windows runners
+* Builds the Linux `.deb` package (`dist/gyroclopter_<version>_amd64.deb`) on Ubuntu runners
+* Smoke-tests each artifact on the runner that built it (boots the binary, confirms port 8443 is listening, kills it)
+* **On push to `main`**: uploads both artifacts to a single draft release tagged `latest` so you can verify the binaries match what your users will download
+* **On push to a `v*` tag**: publishes a real release
+
+The two build jobs are independent and run in parallel after `test` passes.
 
 ⸻
 
@@ -75,3 +79,29 @@ No manual tagging is required in this workflow.
 🚀 Golden Rule
 
 If it lands on main, it ships.
+
+⸻
+
+📦 Releasing
+
+Tag a release once the `latest` draft looks good:
+
+```bash
+git checkout main
+git pull
+# Bump version in package.json + add CHANGELOG entry.
+git tag v0.4.0
+git push origin v0.4.0
+```
+
+The push triggers a real release job (not draft). Delete or update the `latest` draft after publishing.
+
+⸻
+
+🛠️ If a binary is bad
+
+The `latest` draft is your safety net. If the smoke test passes but the binary doesn't actually work for you:
+
+1. Don't tag a release.
+2. Fix it on `dev`, merge to `main`, watch the draft rebuild.
+3. Verify on your own machine by downloading from the draft's assets.

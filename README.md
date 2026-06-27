@@ -90,18 +90,37 @@ sudo apt install ydotool        # Wayland
 
 ## Installation
 
+### From a release
+
+Download the latest artifact for your platform from the [GitHub Releases](../../releases) page:
+
+- **Windows**: `gyroclopter-setup-<version>.exe` — NSIS installer. Run it and follow the prompts.
+- **Linux (Debian/Ubuntu)**: `gyroclopter_<version>_amd64.deb` — install with `sudo dpkg -i gyroclopter_<version>_amd64.deb`.
+
+### From source
+
 ```bash
 npm install
 ```
 
 Dependencies are listed in `package.json`:
 
-| Package      | Purpose                                   |
-|--------------|-------------------------------------------|
-| `qrcode`     | Render the pairing QR code in the terminal |
-| `selfsigned` | Generate self-signed SSL certificates     |
-| `ws`         | WebSocket server                          |
-| `jest`       | Test framework (dev dependency)           |
+| Package        | Purpose                                   |
+|----------------|-------------------------------------------|
+| `qrcode`       | Render the pairing QR code in the terminal |
+| `selfsigned`   | Generate self-signed SSL certificates     |
+| `ws`           | WebSocket server                          |
+| `jest`         | Test framework (dev dependency)           |
+| `@yao-pkg/pkg` | Single-file binary packaging (dev)        |
+| `pngjs`        | Pure-JS PNG/ICO generation (dev)          |
+
+### Build a distributable
+
+```bash
+# Windows: produces dist\gyroclopter-setup-<version>.exe (requires makensis.exe).
+# Linux:   produces dist/gyroclopter_<version>_amd64.deb (requires dpkg-deb).
+npm run build
+```
 
 ---
 
@@ -204,18 +223,25 @@ Test files:
 
 ```
 gyroclopter/
-├── server.js            # Main HTTPS/WebSocket server and mouse controllers
-├── client.html          # Mobile web client
-├── package.json         # npm manifest
-├── package-lock.json    # Locked dependency tree
-├── CHANGELOG.md         # Release history
-├── tests/               # Jest test suite
+├── server.js                 # Main HTTPS/WebSocket server and mouse controllers
+├── client.html               # Mobile web client
+├── installer.nsi             # NSIS installer script (Windows)
+├── pkg.config.cjs            # @yao-pkg/pkg configuration
+├── package.json              # npm manifest
+├── package-lock.json         # Locked dependency tree
+├── CHANGELOG.md              # Release history
+├── scripts/                  # Build tooling
+│   ├── build-binary.js       # @yao-pkg/pkg wrapper
+│   ├── build-icon.js         # PNG → ICO generator
+│   ├── build-installer-nsi.js# Drives makensis
+│   └── build-deb.js          # Plain dpkg-deb assembler
+├── tests/                    # Jest test suite
 │   ├── certificate.test.js
 │   ├── userstories.test.js
 │   ├── smoke.test.js
 │   └── dummy.test.js
-└── .github/workflows/   # GitHub Actions
-    └── exe-generation.yml
+└── .github/workflows/        # GitHub Actions
+    └── build-release.yml
 ```
 
 ---
