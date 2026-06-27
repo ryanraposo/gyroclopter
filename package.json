@@ -15,7 +15,6 @@
     "url": "git+https://github.com/ryanraposo/gyroclopter.git"
   },
   "license": "ISC",
-  "author": "ryanraposo",
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
@@ -23,6 +22,14 @@
     "test": "jest",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.ryanraposo.gyroclopter",
+    "linux": {
+      "target": [
+        "deb"
+      ]
+    }
   },
   "devDependencies": {
     "electron": "^31.0.0",
