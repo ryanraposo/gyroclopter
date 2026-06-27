@@ -11,12 +11,18 @@
 // Force a console window on Windows when run directly.
 if (require.main === module && process.platform === 'win32' && !process.env.IS_CHILD) {
     const { spawn } = require('child_process');
+    const path = require('path');
+    const fs = require('fs');
+    const os = require('os');
+    // Write a temporary .bat file to avoid fragile multi-level quoting
+    // when passing paths with spaces through cmd /c start cmd /k.
     const childArgv = [process.argv[0], ...process.argv.slice(1)];
-    // chcp 65001 ensures the spawned cmd window uses UTF-8 so the QR code
-    // half-block glyphs render correctly. >nul silences chcp's banner.
-    const spawnCmd = 'chcp 65001 >nul && ' +
-        childArgv.map(a => (a.indexOf(' ') >= 0 ? `"${a}"` : a)).join(' ');
-    spawn('cmd', ['/c', 'start', 'cmd', '/k', spawnCmd], {
+    const cmdLine = childArgv
+        .map(a => (a.indexOf(' ') >= 0 ? `"${a}"` : a))
+        .join(' ');
+    const batPath = path.join(os.tmpdir(), `gyroclopter-${process.pid}.bat`);
+    fs.writeFileSync(batPath, `@chcp 65001 >nul\r\n@${cmdLine}\r\n@del "%~f0"\r\n`);
+    spawn('cmd', ['/c', 'start', 'cmd', '/k', batPath], {
         detached: true,
         stdio: 'ignore',
         env: { ...process.env, IS_CHILD: 'true' }

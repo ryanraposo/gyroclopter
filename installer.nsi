@@ -38,6 +38,10 @@ Section "Gyroclopter (required)"
   File "dist\gyroclopter-${VERSION}.exe"
   Rename "$INSTDIR\gyroclopter-${VERSION}.exe" "$INSTDIR\gyroclopter.exe"
 
+  ; Create Start Menu shortcut.
+  CreateDirectory "$SMPROGRAMS\Gyroclopter"
+  CreateShortCut "$SMPROGRAMS\Gyroclopter\Gyroclopter.lnk" "$INSTDIR\gyroclopter.exe"
+
   ; Store install dir and version in HKLM.
   WriteRegStr HKLM "Software\Gyroclopter" "InstallDir" "$INSTDIR"
   WriteRegStr HKLM "Software\Gyroclopter" "Version" "${VERSION}"
@@ -57,6 +61,9 @@ Section "Gyroclopter (required)"
 SectionEnd
 
 Section "Uninstall"
+  Delete "$SMPROGRAMS\Gyroclopter\Gyroclopter.lnk"
+  RMDir "$SMPROGRAMS\Gyroclopter"
+
   Delete "$INSTDIR\gyroclopter.exe"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
