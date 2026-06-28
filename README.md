@@ -17,7 +17,7 @@
 
 ## Windows
 
-The following batch script sets up the development environment on Windows, ensuring Git and Node.js are installed, cloning or updating the repository, and installing npm dependencies. It can be re‑run safely at any time.
+The following batch script sets up the development environment on Windows, ensuring Git and Node.js are installed, cloning or updating the repository, and installing npm dependencies. It can be re‑run safely at any time. It also starts the Gyroclopter server after setup.
 
 <details>
 <summary>Click to expand</summary>
@@ -101,6 +101,9 @@ if errorlevel 1 (
     call :error "npm install failed. Check your Node.js/npm installation."
 )
 echo Setup complete. You can now run 'npm run dev' to start the development server.
+
+echo Starting Gyroclopter server...
+npm start
 endlocal
 ```
 
@@ -112,7 +115,7 @@ Run it repeatedly – it will safely ensure dependencies are present and the rep
 
 ## Linux
 
-The following Bash script prepares a Linux development environment, ensuring Git and Node.js are installed, checking for required mouse‑control tools, cloning or updating the repository, and installing npm dependencies. It can be safely re‑run.
+The following Bash script prepares a Linux development environment, ensuring Git and Node.js are installed, checking for required mouse‑control tools, cloning or updating the repository, and installing npm dependencies. It can be safely re‑run. It also starts the Gyroclopter server after setup.
 
 <details>
 <summary>Click to expand</summary>
@@ -205,6 +208,9 @@ echo
 echo "Setup complete. You can now run:"
 echo "  cd $REPO_DIR && npm run dev"
 echo
+
+echo "Starting Gyroclopter server..."
+npm start
 ```
 
 Make it executable (`chmod +x setup-linux.sh`) and run it anytime.
@@ -215,7 +221,7 @@ Make it executable (`chmod +x setup-linux.sh`) and run it anytime.
 
 ## macOS
 
-The following Bash script sets up the development environment on macOS, verifying Git and Node.js, cloning or updating the repository, and installing npm dependencies. It also notes that mouse injection is not yet implemented on macOS. The script is idempotent and can be re‑run safely.
+The following Bash script sets up the development environment on macOS, verifying Git and Node.js, cloning or updating the repository, and installing npm dependencies. It also notes that mouse injection is not yet implemented on macOS. The script is idempotent and can be re‑run safely. It also starts the Gyroclopter server after setup.
 
 <details>
 <summary>Click to expand</summary>
@@ -294,6 +300,9 @@ echo
 echo "Setup complete. You can now run:"
 echo "  cd $REPO_DIR && npm run dev"
 echo
+
+echo "Starting Gyroclopter server..."
+npm start
 ```
 
 Make it executable (`chmod +x setup-mac.sh`) and run it anytime.
