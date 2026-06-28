@@ -1,20 +1,19 @@
 CHANGELOG
 
-v0.3.1 — Latest Release
+v0.4.0 — Neutralino Migration
 
 Released: Jun 27, 2026
-Published via GitHub Actions
 
-Changes
+Major Changes
 
-* Replaced Electron / SEA / postject build pipeline with @yao-pkg/pkg single-file binary
-* Windows deliverable: NSIS installer (MUI_ICON), no icon embedded in bare .exe
-* Linux deliverable: plain dpkg-deb .deb package
-* QR code fix on Windows: cmd console set to UTF-8 codepage via chcp 65001
-* CI: smoke-test each artifact on the runner (boot binary, verify port 8443, kill)
-* CI: pushes to main update a single draft release tagged "latest" for manual verification
-* CI: tags (v*) publish a real release
-* Removed dev deps: electron, electron-builder, postject, pe-library, rcedit
+* Replaced terminal CLI with Neutralinojs native desktop app (Webview2/WebKitGTK)
+* Dual-binary architecture: single gyroclopter.exe embeds pkg-compiled server.exe
+* Native window with QR code display (base64 data URL from server), server status, connected device count
+* System tray icon with Show Window / Start Server / Quit menu
+* Server communicates via JSON lines on stdout instead of terminal ANSI output
+* Restructured repo: server/ for headless server, desktop/ for Neutralino source
+* Windows installer installs single gyroclopter.exe (no separate server binary)
+* Linux .deb updated for Neutralino binary
 
 ⸻
 

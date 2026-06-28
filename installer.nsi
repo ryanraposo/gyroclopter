@@ -1,14 +1,8 @@
 ; Gyroclopter NSIS installer
-; Run: makensis /DVERSION=x.y.z /DPRODUCT_VERSION=x.y.z installer.nsi
-
 !include "MUI2.nsh"
 
 !ifndef VERSION
   !define VERSION "0.0.0"
-!endif
-
-!ifndef PRODUCT_VERSION
-  !define PRODUCT_VERSION "${VERSION}"
 !endif
 
 Name "Gyroclopter ${VERSION}"
@@ -24,47 +18,41 @@ ShowInstDetails show
 
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
-
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
-
 !insertmacro MUI_LANGUAGE "English"
 
 Section "Gyroclopter (required)"
   SectionIn RO
-  SetOutPath "$INSTDIR"
 
-  ; The pkg-built binary, renamed to gyroclopter.exe at install time.
-  File "dist\gyroclopter-${VERSION}.exe"
-  Rename "$INSTDIR\gyroclopter-${VERSION}.exe" "$INSTDIR\gyroclopter.exe"
+  ; Create the Neutralino runtime folder
+  SetOutPath "$INSTDIR\gyroclopter"
 
-  ; Create Start Menu shortcut.
+  ; Install the entire Neutralino build folder WITH structure
+  File /r "dist\gyroclopter\*.*"
+
+  ; Shortcut points to the real Neutralino runtime
   CreateDirectory "$SMPROGRAMS\Gyroclopter"
-  CreateShortCut "$SMPROGRAMS\Gyroclopter\Gyroclopter.lnk" "$INSTDIR\gyroclopter.exe"
+  CreateShortCut "$SMPROGRAMS\Gyroclopter\Gyroclopter.lnk" "$INSTDIR\gyroclopter\gyroclopter-win_x64.exe"
 
-  ; Store install dir and version in HKLM.
+  ; Registry entries
   WriteRegStr HKLM "Software\Gyroclopter" "InstallDir" "$INSTDIR"
   WriteRegStr HKLM "Software\Gyroclopter" "Version" "${VERSION}"
 
-  ; Register uninstaller.
+  ; Uninstaller
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gyroclopter" \
-    "DisplayName" "Gyroclopter"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gyroclopter" \
-    "DisplayVersion" "${VERSION}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gyroclopter" \
-    "Publisher" "Ryan Raposo"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gyroclopter" \
-    "InstallLocation" "$INSTDIR"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gyroclopter" \
-    "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gyroclopter" "DisplayName" "Gyroclopter"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gyroclopter" "DisplayVersion" "${VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gyroclopter" "Publisher" "Ryan Raposo"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gyroclopter" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gyroclopter" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
 SectionEnd
 
 Section "Uninstall"
   Delete "$SMPROGRAMS\Gyroclopter\Gyroclopter.lnk"
   RMDir "$SMPROGRAMS\Gyroclopter"
 
-  Delete "$INSTDIR\gyroclopter.exe"
+  RMDir /r "$INSTDIR\gyroclopter"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
 

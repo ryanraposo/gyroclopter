@@ -37,6 +37,8 @@ coverage/
 # Build Outputs & Bundles
 # ==========================================
 dist/
+# Neutralino resources directory (generated from desktop/src/ by build:desktop).
+resources/
 # Generated icon assets (rebuilt by `npm run build:icons`).
 build/icon.ico
 build/icons/

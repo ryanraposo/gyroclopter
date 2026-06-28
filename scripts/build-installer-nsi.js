@@ -10,13 +10,13 @@ const VERSION = require(path.join(ROOT, 'package.json')).version;
 
 function findMakensis() {
   const candidates = [
-    'C:\\Program Files (x86)\\NSIS\\makensis.exe',
-    'C:\\Program Files\\NSIS\\makensis.exe',
+    'C:\\\\Program Files (x86)\\\\NSIS\\\\makensis.exe',
+    'C:\\\\Program Files\\\\NSIS\\\\makensis.exe',
     'makensis.exe',
     'makensis'
   ];
   for (const c of candidates) {
-    if (c.includes('\\')) {
+    if (c.includes('\\\\')) {
       if (fs.existsSync(c)) return c;
     } else {
       const r = spawnSync('where', [c], { stdio: 'ignore' });
@@ -39,7 +39,7 @@ function main() {
     'installer.nsi'
   ];
   console.log(`> "${makensis}" ${args.join(' ')}`);
-  const r = spawnSync(`"${makensis}"`, args, { stdio: 'inherit', shell: true });
+  const r = spawnSync(makensis, args, { stdio: 'inherit' });
   if (r.status !== 0) {
     console.error(`makensis exited with code ${r.status}`);
     process.exit(r.status ?? 1);

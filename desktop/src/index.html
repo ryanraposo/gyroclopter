@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gyroclopter</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🚁 <span>Gyroclopter</span></h1>
+  </header>
+
+  <div class="card qr-section">
+    <div id="qr-canvas">
+      <span id="qr-placeholder">Start the server to see the pairing QR code</span>
+    </div>
+    <div id="url-display"></div>
+  </div>
+
+  <div class="card">
+    <div class="status-row">
+      <div>
+        <span class="status-dot stopped" id="status-dot"></span>
+        <span class="status-text" id="status-text">Stopped</span>
+      </div>
+      <span class="connected-count" id="connected-count"></span>
+    </div>
+    <button class="btn btn-start" id="btn-toggle">Start Server</button>
+  </div>
+
+  <div class="card instructions">
+    <ol>
+      <li>Connect your phone to the same Wi-Fi network</li>
+      <li>Scan the QR code or enter the URL manually</li>
+      <li>Accept the self-signed certificate warning</li>
+      <li>Grant motion permission when prompted</li>
+      <li>Tap <strong>Calibrate</strong> while pointing at the cursor</li>
+    </ol>
+  </div>
+
+  <div class="footer">v0.4.0</div>
+
+  <script src="main.js"></script>
+</body>
+</html>

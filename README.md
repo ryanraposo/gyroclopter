@@ -29,7 +29,7 @@ Gyroclopter runs a tiny HTTPS/WebSocket server on your computer and serves a ful
 - **Zero-install mobile client** — works in any modern mobile browser.
 - **Low-latency WebSocket** connection between phone and desktop.
 - **Automatic self-signed SSL certificates** so iOS/Android browsers allow motion sensor access over HTTPS.
-- **Terminal QR code** for instant pairing on the same Wi-Fi network.
+- **Native desktop app** — dedicated window with QR code, server status, and system tray.
 - **Cross-platform server** — runs on Windows, Linux, and macOS.
 - **Native mouse injection**:
   - Windows: PowerShell with P/Invoke (no extra dependencies).
@@ -60,8 +60,9 @@ A QR code appears in the terminal. Scan it with your phone, accept the self-sign
 
 ### Server (desktop)
 
-- **Node.js 16+** and **npm**
 - Same Wi-Fi network as your phone
+- **Windows**: Webview2 (built-in on Windows 10+)
+- **Linux**: WebKitGTK (`webkit2gtk-4.0`)
 
 ### Mouse control
 
@@ -105,14 +106,14 @@ npm install
 
 Dependencies are listed in `package.json`:
 
-| Package        | Purpose                                   |
-|----------------|-------------------------------------------|
-| `qrcode`       | Render the pairing QR code in the terminal |
-| `selfsigned`   | Generate self-signed SSL certificates     |
-| `ws`           | WebSocket server                          |
-| `jest`         | Test framework (dev dependency)           |
-| `@yao-pkg/pkg` | Single-file binary packaging (dev)        |
-| `pngjs`        | Pure-JS PNG/ICO generation (dev)          |
+| Package              | Purpose                                        |
+|----------------------|------------------------------------------------|
+| `selfsigned`         | Generate self-signed SSL certificates          |
+| `ws`                 | WebSocket server                               |
+| `@neutralinojs/neu`  | Neutralino build tool (dev dependency)          |
+| `jest`               | Test framework (dev dependency)                |
+| `@yao-pkg/pkg`       | Single-file binary packaging (dev)             |
+| `pngjs`              | Pure-JS PNG/ICO generation (dev)               |
 
 ### Build a distributable
 
@@ -126,25 +127,28 @@ npm run build
 
 ## Usage
 
-### Start the server
+### Run the desktop app
 
 ```bash
-npm start
+npm run dev
 ```
 
-The server listens on `https://0.0.0.0:8443` by default and prints a QR code.
+Or run the packaged `gyroclopter.exe` directly.
 
 ### Pair your phone
 
-1. Connect your phone to the same Wi-Fi network as the desktop.
-2. Scan the QR code or open the printed URL.
-3. Accept the self-signed certificate warning.
-4. Tap **Allow & Connect** and grant motion access if prompted.
-5. Tap **Calibrate** while pointing your phone at the cursor.
+1. Launch **Gyroclopter**.
+2. Click **Start Server**.
+3. A QR code appears in the app window — or take note of the URL shown below it.
+4. Connect your phone to the same Wi-Fi network.
+5. Scan the QR code or open the URL in your mobile browser.
+6. Accept the self-signed certificate warning.
+7. Tap **Allow & Connect** and grant motion access if prompted.
+8. Tap **Calibrate** while pointing your phone at the cursor.
 
 ### Stop the server
 
-Press `Ctrl+C` in the terminal.
+Click **Stop Server** in the app, or close the window (minimizes to tray) and choose **Quit** from the tray menu.
 
 ---
 
@@ -223,25 +227,25 @@ Test files:
 
 ```
 gyroclopter/
-├── server.js                 # Main HTTPS/WebSocket server and mouse controllers
-├── client.html               # Mobile web client
-├── installer.nsi             # NSIS installer script (Windows)
-├── pkg.config.cjs            # @yao-pkg/pkg configuration
-├── package.json              # npm manifest
-├── package-lock.json         # Locked dependency tree
-├── CHANGELOG.md              # Release history
+├── server/                   # Headless server source (compiled with pkg)
+│   ├── server.js             # HTTPS/WebSocket server and mouse controllers
+│   ├── client.html           # Mobile web client (served to phone)
+│   ├── pkg.config.cjs        # @yao-pkg/pkg configuration
+│   └── tests/                # Jest test suite
+├── desktop/                  # Neutralino desktop app source
+│   └── src/                  # UI source (copied to resources at build)
+│       ├── index.html
+│       ├── main.js
+│       └── style.css
 ├── scripts/                  # Build tooling
-│   ├── build-binary.js       # @yao-pkg/pkg wrapper
+│   ├── build-binary.js       # @yao-pkg/pkg wrapper → server binary
+│   ├── build-desktop.js      # Neutralino build → desktop binary
 │   ├── build-icon.js         # PNG → ICO generator
 │   ├── build-installer-nsi.js# Drives makensis
-│   └── build-deb.js          # Plain dpkg-deb assembler
-├── tests/                    # Jest test suite
-│   ├── certificate.test.js
-│   ├── userstories.test.js
-│   ├── smoke.test.js
-│   └── dummy.test.js
-└── .github/workflows/        # GitHub Actions
-    └── build-release.yml
+│   └── build-deb.js          # dpkg-deb assembler
+├── neutralino.config.json    # Neutralinojs project config
+├── installer.nsi             # NSIS installer script (Windows)
+└── package.json              # npm manifest
 ```
 
 ---

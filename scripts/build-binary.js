@@ -38,8 +38,8 @@ function main() {
   const r = spawnSync(`"${pkg}"`, [
     '--targets', t.node,
     '--output', outPath,
-    '--config', 'pkg.config.cjs',
-    'server.js'
+    '--config', 'server/pkg.config.cjs',
+    'server/server.js'
   ], { stdio: 'inherit', shell: true });
 
   if (r.status !== 0) {

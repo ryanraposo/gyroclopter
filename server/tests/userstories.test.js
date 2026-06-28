@@ -4,7 +4,7 @@ const os = require('os');
 const http = require('http');
 const WebSocket = require('ws');
 const { WebSocketServer } = require('ws');
-const { getCertificates, ensureAppDir } = require('../server');
+const { getCertificates, ensureAppDir } = require('../server.js');
 
 describe('User Stories', () => {
   let tempDir;

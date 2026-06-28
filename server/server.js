@@ -1,28 +1,39 @@
 /**
  * Gyroclopter: A LAN-based air mouse using mobile gyroscopes.
- * 
+ *
+ * When spawned as a child process by the Neutralino desktop app, this server
+ * communicates its status as JSON lines on stdout. The Neutralino parent parses
+ * those lines to drive the desktop UI (QR code, connection count, etc.).
+ *
  * Features:
  * - Low-latency mouse control via WebSocket.
  * - Automatic self-signed SSL certificate generation for secure sensor access.
  * - Native Windows mouse injection via PowerShell (zero native Node dependencies).
- * - Terminal-based QR code for easy mobile pairing.
+ * - JSON stdout protocol for headless operation under Neutralino.
  */
 
-// Force a console window on Windows when run directly.
-if (require.main === module && process.platform === 'win32' && !process.env.IS_CHILD) {
+// Force a console window on Windows when run directly (not as Neutralino child).
+// We write a tiny .bat launcher to a known path and `start` it with an explicit
+// empty window title. Passing the bat path as the second quoted arg of `start`
+// (not the third) is required: `start "<title>" "<command>"` is the only form
+// that survives paths with spaces. The previous form `cmd /c start cmd /k <path>`
+// fails with "The batch file cannot be found" because `start` interprets its
+// first quoted arg as a title and drops the rest.
+if (require.main === module && process.platform === 'win32' && !process.env.IS_CHILD && !process.env.IS_NEUTRALINO_CHILD) {
     const { spawn } = require('child_process');
     const path = require('path');
     const fs = require('fs');
     const os = require('os');
-    // Write a temporary .bat file to avoid fragile multi-level quoting
-    // when passing paths with spaces through cmd /c start cmd /k.
     const childArgv = [process.argv[0], ...process.argv.slice(1)];
     const cmdLine = childArgv
         .map(a => (a.indexOf(' ') >= 0 ? `"${a}"` : a))
         .join(' ');
     const batPath = path.join(os.tmpdir(), `gyroclopter-${process.pid}.bat`);
-    fs.writeFileSync(batPath, `@chcp 65001 >nul\r\n@${cmdLine}\r\n@del "%~f0"\r\n`);
-    spawn('cmd', ['/c', 'start', 'cmd', '/k', batPath], {
+    fs.writeFileSync(batPath, `@chcp 65001 >nul
+\n@${cmdLine}
+\n@del "%~f0"
+\n`);
+    spawn('cmd', ['/c', 'start', '""', batPath], {
         detached: true,
         stdio: 'ignore',
         env: { ...process.env, IS_CHILD: 'true' }
@@ -67,8 +78,12 @@ function looksLikePem(data) {
 /**
  * Retrieves existing SSL certificates or generates new ones.
  * Required for mobile browsers to allow access to DeviceOrientation events.
+ *
+ * Ensures the cert directory exists before reading or writing so callers can pass
+ * a CERT_DIR that doesn't yet exist without triggering ENOENT.
  */
 async function getCertificates() {
+    ensureAppDir();
     const certDir = process.env.CERT_DIR || CONFIG.APP_DIR;
     const keyPath = path.join(certDir, 'key.pem');
     const certPath = path.join(certDir, 'cert.pem');
@@ -80,7 +95,6 @@ async function getCertificates() {
             return { key, cert };
         }
     }
-    console.log('\x1b[33m%s\x1b[0m', '🛡️  Generating self-signed SSL certificates for Gyroclopter...');
     // Generate real self-signed certificates using selfsigned library
     const attrs = [{ name: 'commonName', value: 'Gyroclopter' }];
     const pems = await selfsigned.generate(attrs, { days: 365 });
@@ -335,96 +349,176 @@ function getLocalIp() {
 }
 
 /**
- * Retrieves the client HTML from the client.html file.
+ * Writes a single JSON status line to stdout, terminated with a newline,
+ * and forces a flush so the Neutralino parent never sees a partial line
+ * (stdout is fully buffered when piped on Windows).
  */
+function emitStatus(obj) {
+    process.stdout.write(JSON.stringify(obj) + '\n');
+}
+
+/**
+ * Retrieves the client HTML from the client.html file. Cached on first read
+ * to avoid sync I/O on every HTTPS request (which would block the event loop
+ * under load).
+ */
+let clientHtmlCache = null;
 function getClientHtml() {
-    const htmlPath = path.join(__dirname, 'client.html');
-    return fs.readFileSync(htmlPath, 'utf8');
+    if (clientHtmlCache === null) {
+        const htmlPath = path.join(__dirname, 'client.html');
+        clientHtmlCache = fs.readFileSync(htmlPath, 'utf8');
+    }
+    return clientHtmlCache;
+}
+
+/**
+ * Returns true if value is a finite number. Used to reject garbage WS payloads
+ * that would otherwise become "NaN" commands piped to PowerShell/xdotool.
+ */
+function isFiniteNumber(v) {
+    return typeof v === 'number' && Number.isFinite(v);
+}
+
+/**
+ * Dispatches a parsed WebSocket message to the mouse controller.
+ *
+ * Validates the payload, applies the sensitivity multiplier, and translates
+ * high-level message types into the controller's command strings
+ * (MOVE, LEFT_DOWN, LEFT_UP, CLICK_RIGHT, SCROLL). Returns true if the
+ * message produced a controller command, false if it was rejected as
+ * invalid or ignored as unknown.
+ *
+ * Extracted from main() so the protocol contract is unit-testable
+ * without spinning up a real WebSocket server.
+ */
+function handleWsMessage(data, mouse) {
+    if (!data || typeof data.type !== 'string') return false;
+
+    switch (data.type) {
+        case 'move':
+            if (!isFiniteNumber(data.dx) || !isFiniteNumber(data.dy)) return false;
+            {
+                const dx = Math.round(data.dx * CONFIG.MOUSE_SENSITIVITY_MULTIPLIER);
+                const dy = Math.round(data.dy * CONFIG.MOUSE_SENSITIVITY_MULTIPLIER);
+                mouse.sendCommand(`MOVE ${dx} ${dy}`);
+            }
+            return true;
+        case 'down':
+            mouse.sendCommand('LEFT_DOWN');
+            return true;
+        case 'up':
+            mouse.sendCommand('LEFT_UP');
+            return true;
+        case 'right':
+            mouse.sendCommand('CLICK_RIGHT');
+            return true;
+        case 'scroll':
+            if (!isFiniteNumber(data.delta)) return false;
+            mouse.sendCommand(`SCROLL ${Math.trunc(data.delta)}`);
+            return true;
+        default:
+            return false;
+    }
 }
 
 /**
  * Main application entry point.
+ * Communicates with the Neutralino parent via JSON lines on stdout.
+ *
+ * Fatal startup errors (EADDRINUSE, cert generation failure, etc.) are reported
+ * via a `{"event":"error", ...}` JSON line so the parent can surface them in the
+ * UI rather than seeing an unexplained child-process exit.
  */
 async function main() {
-    ensureAppDir();
-    
-    const certificates = await getCertificates();
-    const mouse = new GenericMouseController();
+    try {
+        ensureAppDir();
+        const certificates = await getCertificates();
+        const mouse = new GenericMouseController();
 
-    const server = https.createServer(certificates, (req, res) => {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(getClientHtml());
-    });
+        let connectedCount = 0;
 
-    const wss = new WebSocket.Server({ server });
-
-    wss.on('connection', (ws) => {
-        ws.on('message', (message) => {
-            try {
-                const data = JSON.parse(message);
-                switch (data.type) {
-                    case 'move':
-                        const dx = Math.round(data.dx * CONFIG.MOUSE_SENSITIVITY_MULTIPLIER);
-                        const dy = Math.round(data.dy * CONFIG.MOUSE_SENSITIVITY_MULTIPLIER);
-                        mouse.sendCommand(`MOVE ${dx} ${dy}`);
-                        break;
-                    case 'down':
-                        mouse.sendCommand('LEFT_DOWN');
-                        break;
-                    case 'up':
-                        mouse.sendCommand('LEFT_UP');
-                        break;
-                    case 'right':
-                        mouse.sendCommand('CLICK_RIGHT');
-                        break;
-                    case 'scroll':
-                        mouse.sendCommand(`SCROLL ${data.delta}`);
-                        break;
-                }
-            } catch (err) {
-                // Ignore parsing errors
-            }
+        const server = https.createServer(certificates, (req, res) => {
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(getClientHtml());
         });
-    });
 
-    const localIp = getLocalIp();
-    const url = `https://${localIp}:${CONFIG.PORT}`;
+        const wss = new WebSocket.Server({ server });
 
-    server.listen(CONFIG.PORT, '0.0.0.0', async () => {
-        console.clear();
-        console.log('\x1b[36m%s\x1b[0m', '🚀 Gyroclopter Server Started');
-        console.log('\x1b[90m%s\x1b[0m', '--------------------------------------------------');
-        console.log(`URL: \x1b[4m${url}\x1b[0m\n`);
+        // EADDRINUSE etc. must be caught here, otherwise Node throws
+        // "Unhandled 'error' event" and the process exits without telling the
+        // Neutralino parent what happened.
+        server.on('error', (err) => {
+            emitStatus({ event: 'error', code: err.code || 'LISTEN_ERROR', message: err.message });
+            mouse.dispose();
+            process.exit(1);
+        });
+        wss.on('error', (err) => {
+            emitStatus({ event: 'error', code: err.code || 'WSS_ERROR', message: err.message });
+        });
 
-        try {
-            const qr = await QRCode.toString(url, {
-                type: 'terminal',
-                small: true,
-                errorCorrectionLevel: 'M'
+        wss.on('connection', (ws) => {
+            connectedCount++;
+            emitStatus({ event: 'connection', count: connectedCount });
+
+            ws.on('error', (err) => {
+                // Per-socket errors are not fatal; log a status line for diagnostics.
+                emitStatus({ event: 'socket_error', message: err.message });
             });
-            console.log(qr);
-            console.log('\x1b[90m' + url + '\x1b[0m');
-        } catch (err) {
-            console.log('Could not generate QR code in terminal.');
-        }
 
-        console.log('\x1b[33mInstructions:\x1b[0m');
-        console.log('1. Connect your phone to the same Wi-Fi network.');
-        console.log('2. Scan the QR code or enter the URL manually.');
-        console.log('3. Accept the self-signed certificate warning in your browser.');
-        console.log('4. Keep the browser tab open and active.');
-        console.log('\n\x1b[90mPress Ctrl+C to stop the server.\x1b[0m');
-    });
+            ws.on('message', (message) => {
+                            let data;
+                            try {
+                                data = JSON.parse(message);
+                            } catch (_) {
+                                return; // Ignore malformed JSON.
+                            }
+                            handleWsMessage(data, mouse);
+                        });
 
-    // Graceful shutdown
-    const shutdown = () => {
-        console.log('\nShutting down Gyroclopter...');
-        mouse.dispose();
-        process.exit();
-    };
+            ws.on('close', () => {
+                connectedCount = Math.max(0, connectedCount - 1);
+                emitStatus({ event: 'disconnection', count: connectedCount });
+            });
+        });
 
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
+        const localIp = getLocalIp();
+        const url = `https://${localIp}:${CONFIG.PORT}`;
+
+        server.listen(CONFIG.PORT, '0.0.0.0', async () => {
+            let qr = '';
+            try {
+                qr = await QRCode.toDataURL(url, {
+                    errorCorrectionLevel: 'M',
+                    margin: 1,
+                    width: 400
+                });
+            } catch (_) { /* QR generation failed silently */ }
+
+            emitStatus({
+                event: 'started',
+                ip: localIp,
+                port: CONFIG.PORT,
+                qr: qr
+            });
+        });
+
+        const shutdown = () => {
+            mouse.dispose();
+            process.exit(0);
+        };
+
+        process.on('SIGINT', shutdown);
+        process.on('SIGTERM', shutdown);
+    } catch (err) {
+        // Anything thrown during startup (cert generation, etc.) reaches here
+        // and is reported as a structured event before the process exits.
+        emitStatus({
+            event: 'error',
+            code: err && err.code ? err.code : 'STARTUP_ERROR',
+            message: err && err.message ? err.message : String(err)
+        });
+        process.exit(1);
+    }
 }
 
 // Only start the server if run directly (not when required as a module)

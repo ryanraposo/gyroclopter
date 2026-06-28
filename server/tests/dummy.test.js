@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { getLocalIp, ensureAppDir, CONFIG } = require('../server');
+const { getLocalIp, ensureAppDir, CONFIG } = require('../server.js');
 
 describe('Utility Functions', () => {
   test('getLocalIp returns a valid IPv4 address for LAN access', () => {

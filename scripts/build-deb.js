@@ -2,7 +2,7 @@
  * Build a Debian package around the Linux SEA binary using dpkg-deb.
  * Output: dist/gyroclopter_<version>_amd64.deb
  *
- * Requires: build:sea (dist/gyroclopter-<version>), build:icons (build/icons/<N>x<N>.png)
+ * Requires: build:desktop (dist/gyroclopter), build:icons (build/icons/<N>x<N>.png)
  */
 const fs = require('fs');
 const path = require('path');
@@ -14,7 +14,7 @@ const PKG = require(path.join(ROOT, 'package.json'));
 const VERSION = PKG.version;
 const APP = PKG.name;
 
-const BIN_NAME = `${APP}-${VERSION}`;
+const BIN_NAME = `${APP}`;
 const BIN_SRC = path.join(ROOT, 'dist', BIN_NAME);
 const STAGE = path.join(os.tmpdir(), `${APP}-deb-${process.pid}`);
 const OUT = path.join(ROOT, 'dist', `${APP}_${VERSION}_amd64.deb`);
@@ -44,7 +44,7 @@ function findIcon() {
 
 function main() {
   if (!fs.existsSync(BIN_SRC)) {
-    console.error(`Missing ${BIN_SRC} — run "npm run build:sea" first.`);
+    console.error(`Missing ${BIN_SRC} — run "npm run build:desktop" first.`);
     process.exit(1);
   }
 

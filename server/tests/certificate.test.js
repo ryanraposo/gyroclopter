@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { getCertificates, ensureAppDir } = require('../server');
+const { getCertificates, ensureAppDir } = require('../server.js');
 
 describe('Certificate Management', () => {
   let tempCertDir;
