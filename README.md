@@ -13,20 +13,19 @@ Gyroclopter runs a tiny HTTPS/WebSocket server on your computer and serves a ful
 <details>
 <summary>Click to expand</summary>
 
-### Quick start (dev)
-
-```bat
-git clone https://github.com/ryanraposo/gyroclopter.git
-cd gyroclopter
-npm install
-npm run dev
-```
-
-### Idempotent batch script (save as `setup-windows.bat`)
+### Idempotent setup script (save as `setup-windows.bat`)
 
 ```bat
 @echo off
-REM Idempotent setup for Gyroclopter on Windows
+REM Idempotent setup for Gyroclopter on Windows: ensures git, node, and the repo are present.
+where git >nul 2>&1 || (
+    echo Error: git is not installed. Please install git from https://git-scm.com/
+    exit /b 1
+)
+where node >nul 2>&1 || (
+    echo Error: node.js is not installed. Please install node.js from https://nodejs.org/
+    exit /b 1
+)
 if not exist gyroclopter (
     git clone https://github.com/ryanraposo/gyroclopter.git
     cd gyroclopter
@@ -35,17 +34,10 @@ if not exist gyroclopter (
     git pull
 )
 npm install
-npm run dev
+REM Optional: install xdotool/ydotool equivalents? On Windows not needed.
+REM For mouse injection, PowerShell is built-in.
 ```
-Run it repeatedly – it will safely update and restart the dev server.
-
-### Build installer
-
-```bat
-npm run build
-npm run build:win-installer
-```
-The NSIS installer will appear in `dist/gyroclopter-setup-<version>.exe`.
+Run it repeatedly – it will safely update and ensure dependencies.
 
 </details>
 
@@ -56,20 +48,30 @@ The NSIS installer will appear in `dist/gyroclopter-setup-<version>.exe`.
 <details>
 <summary>Click to expand</summary>
 
-### Quick start (dev)
-
-```bash
-git clone https://github.com/ryanraposo/gyroclopter.git
-cd gyroclopter
-npm install
-npm run dev
-```
-
-### Idempotent shell script (save as `setup-linux.sh`)
+### Idempotent setup script (save as `setup-linux.sh`)
 
 ```bash
 #!/usr/bin/env bash
 set -e
+# Ensure git, node, and (for mouse) xdotool or ydotool are available
+if ! command -v git &> /dev/null; then
+    echo "Error: git is not installed. Please install git (e.g., sudo apt install git)"
+    exit 1
+fi
+if ! command -v node &> /dev/null; then
+    echo "Error: node.js is not installed. Please install node.js (e.g., sudo apt install nodejs)"
+    exit 1
+fi
+# Optional: check for xdotool or ydotool based on session type
+if [ "$XDG_SESSION_TYPE" = "x11" ]; then
+    if ! command -v xdotool &> /dev/null; then
+        echo "Warning: xdotool not installed. Install for mouse support: sudo apt install xdotool"
+    fi
+elif [ "$XDG_SESSION_TYPE" = "wayland" ]; then
+    if ! command -v ydotool &> /dev/null; then
+        echo "Warning: ydotool not installed. Install for mouse support: sudo apt install ydotool"
+    fi
+fi
 if [ ! -d gyroclopter ]; then
     git clone https://github.com/ryanraposo/gyroclopter.git
     cd gyroclopter
@@ -78,17 +80,8 @@ else
     git pull
 fi
 npm install
-npm run dev
 ```
 Make it executable (`chmod +x setup-linux.sh`) and run it anytime.
-
-### Build Debian package
-
-```bash
-npm run build
-npm run build:deb
-```
-The `.deb` file will appear in `dist/gyroclopter_<version>_amd64.deb`.
 
 </details>
 
@@ -99,20 +92,21 @@ The `.deb` file will appear in `dist/gyroclopter_<version>_amd64.deb`.
 <details>
 <summary>Click to expand</summary>
 
-### Quick start (dev)
-
-```bash
-git clone https://github.com/ryanraposo/gyroclopter.git
-cd gyroclopter
-npm install
-npm run dev
-```
-
-### Idempotent shell script (save as `setup-mac.sh`)
+### Idempotent setup script (save as `setup-mac.sh`)
 
 ```bash
 #!/usr/bin/env bash
 set -e
+# Ensure git and node are available
+if ! command -v git &> /dev/null; then
+    echo "Error: git is not installed. Please install git (e.g., brew install git)"
+    exit 1
+fi
+if ! command -v node &> /dev/null; then
+    echo "Error: node.js is not installed. Please install node.js (e.g., brew install node)"
+    exit 1
+fi
+# Note: Mouse injection not yet implemented on macOS.
 if [ ! -d gyroclopter ]; then
     git clone https://github.com/ryanraposo/gyroclopter.git
     cd gyroclopter
@@ -121,19 +115,45 @@ else
     git pull
 fi
 npm install
-npm run dev
 ```
 Make it executable (`chmod +x setup-mac.sh`) and run it anytime.
 
-### Build macOS app (requires Neutralino packaging)
+</details>
+
+---
+
+## Development
+
+### Quick start (dev)
 
 ```bash
-npm run build
-npm run build:desktop   # produces macOS app in dist/
-```
-Note: Mouse injection is not yet implemented on macOS.
+# Clone the repository
+git clone https://github.com/ryanraposo/gyroclopter.git
+cd gyroclopter
 
-</details>
+# Install dependencies
+npm install
+
+# Start the server
+npm run dev
+```
+
+A QR code appears in the terminal. Scan it with your phone, accept the self-signed certificate warning, grant motion permission, and calibrate. You’re now controlling the mouse.
+
+### Build a distributable
+
+```bash
+# Windows: produces dist\gyroclopter-setup-<version>.exe (requires makensis.exe).
+# Linux:   produces dist/gyroclopter_<version>_amd64.deb (requires dpkg-deb).
+# macOS:   produces a Neutralino app in dist/ (requires packaging tools).
+npm run build
+```
+
+Then platform‑specific installers:
+
+- **Windows:** `npm run build:win-installer`
+- **Linux:** `npm run build:deb`
+- **macOS:** `npm run build:desktop` (produces macOS app in `dist/`)
 
 ---
 
@@ -188,7 +208,11 @@ const CONFIG = {
 - **Phone can’t reach the server** – Ensure both devices are on the same Wi‑Fi and port 8443 isn’t blocked.
 - **Motion permission denied** – On iOS you must tap **Allow & Connect** and grant permission when prompted.
 - **Self‑signed certificate warning** – Expected; mobile browsers require HTTPS for `devicemotion`. Proceed safely.
-- **Linux mouse doesn’t move** – Install `xdotool` (X11) or `ydotool` (Wayland) and check `$XDG_SESSION_TYPE`.
+- **Linux mouse doesn’t move** – Install `xdotool` (X11) or `ydotool` (Wayland` and check `$XDG_SESSION_TYPE`.
+
+---
+
+## (Wayland) and check `$XDG_SESSION_TYPE`.
 
 ---
 
