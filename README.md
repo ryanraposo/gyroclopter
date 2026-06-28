@@ -19,57 +19,58 @@ Gyroclopter runs a tiny HTTPS/WebSocket server on your computer and serves a ful
 @echo off
 REM ============================================================================
 REM Idempotent setup for Gyroclopter on Windows.
-REM Ensures git, node, and the repository are present.
-REM If git or node are missing, attempts to install them via winget/chocolatey.
+REM Ensures git and node are present, and the repository is available.
+REM If git is missing, attempts to download the repository as a ZIP file.
+REM If node is missing, exits with instructions to install it manually.
 REM ============================================================================
 
-:: Enable delayed expansion for variable manipulation inside blocks
 setlocal EnableDelayedExpansion
 
-:: Helper function to print error and exit
+:: Helper to print error and exit
 :error
 echo.
 echo ERROR: %~1
 echo.
 exit /b 1
 
-:: --- Check and install git -------------------------------------------------
+:: --- Check for git ---------------------------------------------------------
 where git >nul 2>&1
 if errorlevel 1 (
-    echo Git not found. Attempting to install via winget...
-    winget install --id Git.Git -e --silent >nul 2>&1
+    echo Git not found. Attempting to download repository as ZIP...
+    :: Use PowerShell to download and extract the ZIP
+    powershell -NoProfile -Command "^
+        \$ErrorActionPreference = 'Stop'; ^
+        \$zipPath = '%TEMP%\gyroclopter.zip'; ^
+        \$url = 'https://github.com/ryanraposo/gyroclopter/archive/refs/heads/dev.zip'; ^
+        try { ^
+            Invoke-WebRequest -Uri \$url -OutFile \$zipPath -UseBasicParsing; ^
+            Expand-Archive -Path \$zipPath -DestinationPath '%TEMP%\gyroclopter-temp' -Force; ^
+            move /Y '%TEMP%\gyroclopter-temp\gyroclopter-dev' gyroclopter; ^
+            Remove-Item \$zipPath -Force; ^
+            Remove-Item -Recurse -Force '%TEMP%\gyroclopter-temp'; ^
+            Write-Host 'Repository downloaded and extracted successfully.'; ^
+        } catch { ^
+            Write-Error 'Failed to download or extract repository.'; ^
+            exit 1; ^
+        }"
     if errorlevel 1 (
-        echo Winget not available or failed. Trying Chocolatey...
-        choco install git -y >nul 2>&1
-        if errorlevel 1 (
-            call :error "Git is not installed and could not be installed automatically. Please install git manually from https://git-scm.com/ and re-run this script."
-        )
+        call :error "Failed to download repository. Please install git manually from https://git-scm.com/ and re-run this script."
     )
-    echo Git installed successfully.
 ) else (
     echo Git found.
 )
 
-:: --- Check and install node.js --------------------------------------------
+:: --- Check for node ---------------------------------------------------------
 where node >nul 2>&1
 if errorlevel 1 (
-    echo Node.js not found. Attempting to install via winget...
-    winget install --id OpenJS.NodeJS -e --silent >nul 2>&1
-    if errorlevel 1 (
-        echo Winget not available or failed. Trying Chocolatey...
-        choco install nodejs-lts -y >nul 2>&1
-        if errorlevel 1 (
-            call :error "Node.js is not installed and could not be installed automatically. Please install Node.js manually from https://nodejs.org/ and re-run this script."
-        )
-    )
-    echo Node.js installed successfully.
+    call :error "Node.js is not installed. Please install Node.js from https://nodejs.org/ and re-run this script."
 ) else (
     echo Node.js found.
 )
 
-:: --- Ensure the repository is present --------------------------------------
+:: --- Ensure repository is present (if not already extracted) -----------------
 if not exist gyroclopter (
-    echo Repository not found. Cloning...
+    echo Repository not found after git/check. Cloning via git...
     git clone https://github.com/ryanraposo/gyroclopter.git
     if errorlevel 1 (
         call :error "Failed to clone repository. Check your internet connection and git installation."
@@ -84,7 +85,7 @@ if not exist gyroclopter (
     cd ..
 )
 
-:: --- Install Node dependencies ---------------------------------------------
+:: --- Install Node dependencies ----------------------------------------------
 cd gyroclopter
 echo Installing Node.js dependencies...
 npm install
@@ -114,89 +115,82 @@ set -euo pipefail
 
 # ============================================================================
 # Idempotent setup for Gyroclopter on Linux.
-# Ensures git, node, and (optionally) xdotool/ydotool are present.
-# If git or node are missing, attempts to install them via the distro's package manager.
-# ============================================================================
+# Ensures git and node are present, and the repository is available.
+// If git is missing, attempts to download the repository as a ZIP file.
+// If node is missing, exits with instructions to install it manually.
+// ============================================================================
 
-# Detect package manager
-if command -v apt-get &>/dev/null; then
-    PKG_UPDATE="sudo apt-get update"
-    PKG_INSTALL="sudo apt-get install -y"
-elif command -v dnf &>/dev/null; then
-    PKG_UPDATE="sudo dnf check-update"
-    PKG_INSTALL="sudo dnf install -y"
-elif command -v pacman &>/dev/null; then
-    PKG_UPDATE="sudo pacman -Sy"
-    PKG_INSTALL="sudo pacman -S --noconfirm"
-else
-    echo "Error: Unsupported package manager. Please install git and node manually."
+# Helper to print error and exit
+error() {
+    echo "Error: $1" >&2
     exit 1
-fi
-
-# Helper to install a package if not present
-install_pkg() {
-    local pkg=$1
-    if ! command -v "$pkg" &>/dev/null; then
-        echo "Installing $pkg..."
-        $PKG_UPDATE
-        $PKG_INSTALL "$pkg"
-    else
-        echo "$pkg already installed."
-    fi
 }
 
-# --- Ensure git is installed ------------------------------------------------
-install_pkg git
-
-# --- Ensure node.js is installed -------------------------------------------
-# Prefer nodejs from distro; if not available, try to install nodejs-lts from nodesource
-if ! command -v node &>/dev/null; then
-    echo "Node.js not found. Attempting to install..."
-    $PKG_UPDATE
-    # Try to install nodejs (may be older) or nodesource setup for LTS
-    if command -v apt-get &>/dev/null; then
-        # Ubuntu/Debian: install nodejs and npm
-        $PKG_INSTALL nodejs npm
-    elif command -v dnf &>/dev/null; then
-        $PKG_INSTALL nodejs npm
-    elif command -v pacman &>/dev/null; then
-        $PKG_INSTALL nodejs npm
+# --- Check for git -----------------------------------------------------------
+if ! command -v git &>/dev/null; then
+    echo "Git not found. Attempting to download repository as ZIP..."
+    # Determine which downloader is available
+    if command -v curl &>/dev/null; then
+        DOWNLOAD_CMD="curl -L -o"
+    elif command -v wget &>/dev/null; then
+        DOWNLOAD_CMD="wget -O"
+    else
+        error "Neither curl nor wget is available. Please install git or one of curl/wget to download the repository."
     fi
-    # Verify node is now available
-    if ! command -v node &>/dev/null; then
-        echo "Error: Failed to install node.js. Please install it manually and re-run this script."
-        exit 1
+    ZIP_FILE="$(mktemp).zip"
+    REPO_URL="https://github.com/ryanraposo/gyroclopter/archive/refs/heads/dev.zip"
+    $DOWNLOAD_CMD "$ZIP_FILE" "$REPO_URL" || error "Failed to download repository ZIP."
+    # Unzip
+    if command -v unzip &>/dev/null; then
+        unzip -q "$ZIP_FILE" -d "$(dirname "$ZIP_FILE")" || error "Failed to extract ZIP."
+        mv "$(dirname "$ZIP_FILE")/gyroclopter-dev" gyroclopter || error "Failed to rename extracted directory."
+    else
+        error "unzip is required to extract the repository ZIP. Please install unzip."
     fi
+    rm -f "$ZIP_FILE"
+    echo "Repository downloaded and extracted successfully."
+else
+    echo "Git found."
 fi
-echo "Node.js version: $(node --version)"
 
-# --- Optional: ensure mouse tool is installed based on session type ---------
+# --- Check for node ----------------------------------------------------------
+if ! command -v node &>/dev/null; then
+    error "Node.js is not installed. Please install Node.js from https://nodejs.org/ and re-run this script."
+else
+    echo "Node.js version: $(node --version)"
+fi
+
+# --- Optional: check for mouse tools based on session type -------------------
 if [[ "${XDG_SESSION_TYPE:-}" == "x11" ]]; then
-    install_pkg xdotool
+    if ! command -v xdotool &>/dev/null; then
+        echo "Warning: xdotool not installed. Install it for mouse support: sudo apt install xdotool"
+    fi
 elif [[ "${XDG_SESSION_TYPE:-}" == "wayland" ]]; then
-    install_pkg ydotool
+    if ! command -v ydotool &>/dev/null; then
+        echo "Warning: ydotool not installed. Install it for mouse support: sudo apt install ydotool"
+    fi
 else
     echo "Warning: Could not determine session type (XDG_SESSION_TYPE not set). Mouse tools may be needed."
 fi
 
-# --- Ensure the repository is present ---------------------------------------
+# --- Ensure repository is present (if not already extracted) -----------------
 REPO_DIR="gyroclopter"
 REPO_URL="https://github.com/ryanraposo/gyroclopter.git"
 
 if [[ ! -d "$REPO_DIR" ]]; then
-    echo "Cloning repository..."
-    git clone "$REPO_URL" "$REPO_DIR"
+    echo "Repository not found. Cloning via git..."
+    git clone "$REPO_URL" "$REPO_DIR" || error "Failed to clone repository."
 else
     echo "Updating repository..."
     cd "$REPO_DIR"
-    git pull
+    git pull || error "Failed to pull updates."
     cd ..
 fi
 
-# --- Install Node dependencies ---------------------------------------------
+# --- Install Node dependencies -----------------------------------------------
 cd "$REPO_DIR"
 echo "Installing Node.js dependencies..."
-npm install
+npm install || error "npm install failed."
 cd ..
 
 echo
@@ -224,61 +218,66 @@ set -euo pipefail
 
 # ============================================================================
 # Idempotent setup for Gyroclopter on macOS.
-# Ensures git, node, and (optionally) mouse tools are present.
-# If git or node are missing, attempts to install them via Homebrew.
-# ============================================================================
+// Ensures git and node are present, and the repository is available.
+// If git is missing, attempts to download the repository as a ZIP file.
+// If node is missing, exits with instructions to install it manually.
+// ============================================================================
 
-# Check for Homebrew and install if missing
-if ! command -v brew &>/dev/null; then
-    echo "Homebrew not found. Installing Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    # Add Homebrew to PATH for this session (Apple Silicon and Intel paths)
-    echo 'eval "$(/opt/homebrew/bin/bash --shell)"' >> ~/.zprofile
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
+# Helper to print error and exit
+error() {
+    echo "Error: $1" >&2
+    exit 1
+}
 
-# Update Homebrew
-echo "Updating Homebrew..."
-brew update
-
-# --- Ensure git is installed ------------------------------------------------
+# --- Check for git -----------------------------------------------------------
 if ! command -v git &>/dev/null; then
-    echo "Installing git..."
-    brew install git
+    echo "Git not found. Attempting to download repository as ZIP..."
+    if ! command -v curl &>/dev/null; then
+        error "curl is required to download the repository ZIP. Please install curl or git."
+    fi
+    ZIP_FILE="$(mktemp).zip"
+    REPO_URL="https://github.com/ryanraposo/gyroclopter/archive/refs/heads/dev.zip"
+    curl -L -o "$ZIP_FILE" "$REPO_URL" || error "Failed to download repository ZIP."
+    if ! command -v unzip &>/dev/null; then
+        error "unzip is required to extract the repository ZIP. Please install unzip."
+    fi
+    unzip -q "$ZIP_FILE" -d "$(dirname "$ZIP_FILE")" || error "Failed to extract ZIP."
+    mv "$(dirname "$ZIP_FILE")/gyroclopter-dev" gyroclopter || error "Failed to rename extracted directory."
+    rm -f "$ZIP_FILE"
+    echo "Repository downloaded and extracted successfully."
 else
-    echo "git already installed."
+    echo "Git found."
 fi
 
-# --- Ensure node.js is installed -------------------------------------------
+# --- Check for node ----------------------------------------------------------
 if ! command -v node &>/dev/null; then
-    echo "Installing Node.js..."
-    brew install node
+    error "Node.js is not installed. Please install Node.js from https://nodejs.org/ and re-run this script."
 else
-    echo "Node.js already installed: $(node --version)"
+    echo "Node.js version: $(node --version)"
 fi
 
-# --- Optional: note about mouse tools on macOS ------------------------------
+# --- Optional: note about mouse tools on macOS -------------------------------
 echo "Note: Mouse injection is not yet implemented on macOS."
 echo "If you wish to contribute, consider adding ydotool-equivalent support."
 
-# --- Ensure the repository is present ---------------------------------------
+# --- Ensure repository is present (if not already extracted) -----------------
 REPO_DIR="gyroclopter"
 REPO_URL="https://github.com/ryanraposo/gyroclopter.git"
 
 if [[ ! -d "$REPO_DIR" ]]; then
-    echo "Cloning repository..."
-    git clone "$REPO_URL" "$REPO_DIR"
+    echo "Repository not found. Cloning via git..."
+    git clone "$REPO_URL" "$REPO_DIR" || error "Failed to clone repository."
 else
     echo "Updating repository..."
     cd "$REPO_DIR"
-    git pull
+    git pull || error "Failed to pull updates."
     cd ..
 fi
 
-# --- Install Node dependencies ---------------------------------------------
+# --- Install Node dependencies -----------------------------------------------
 cd "$REPO_DIR"
 echo "Installing Node.js dependencies..."
-npm install
+npm install || error "npm install failed."
 cd ..
 
 echo
@@ -309,7 +308,7 @@ npm install
 npm run dev
 ```
 
-A QR code appears in the terminal. Scan it with your phone, accept the self‑signed certificate warning, grant motion permission, and calibrate. You’re now controlling the mouse.
+A QR code appears in the terminal. Scan it with your phone, accept the self-signed certificate warning, grant motion permission, and calibrate. You're now controlling the mouse.
 
 ### Build a distributable
 
@@ -380,10 +379,6 @@ const CONFIG = {
 - **Motion permission denied** – On iOS you must tap **Allow & Connect** and grant permission when prompted.
 - **Self‑signed certificate warning** – Expected; mobile browsers require HTTPS for `devicemotion`. Proceed safely.
 - **Linux mouse doesn’t move** – Install `xdotool` (X11) or `ydotool` (Wayland) and check `$XDG_SESSION_TYPE`.
-
----
-
-## (Wayland) and check `$XDG_SESSION_TYPE`.
 
 ---
 
