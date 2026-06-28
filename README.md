@@ -1,26 +1,33 @@
-# Gyroclopter 🚁
+<br/>
+<div align="center">
+  <a href="" rel="noopener">
+  <img width=300px src="./gc.png" alt="CodeUI"></a>
+</div>
+<br/>
+<div align="center">
 
-Turn your phone into a wireless gyroscopic air mouse for your desktop.
+  # Gyroclopter
 
-Gyroclopter runs a tiny HTTPS/WebSocket server on your computer and serves a full-screen mobile web client. Point your phone at the screen, tilt to steer, tap to click, and swipe to scroll — no app store installs required.
+  Point your phone, and then point your phone.
+  
+  [![LoveIt;ShipIt](https://gitlab.com/ryanraposo/LoveItShipIt/-/raw/master/sticker/loveitshipit.svg)](http://github.com/ryanraposo/LoveItShipIt)
+  
+</div>
 
-![Gyroclopter icon](build/icon-source.png =100x100) [![loveitshipit](https://img.shields.io/badge/loveitshipit-ryanraposo-blue)](https://github.com/ryanraposo/loveitshipit)
-
----
 
 ## Windows
 
+The following batch script sets up the development environment on Windows, ensuring Git and Node.js are installed, cloning or updating the repository, and installing npm dependencies. It can be re‑run safely at any time.
+
 <details>
 <summary>Click to expand</summary>
-
-### Idempotent setup script (save as `setup-windows.bat`)
 
 ```bat
 @echo off
 REM ============================================================================
 REM Idempotent setup for Gyroclopter on Windows.
 REM Ensures git and node are present, and the repository is available.
-REM If git is missing, attempts to download the repository as a ZIP file.
+REM If git is missing, downloads the repository as a ZIP file.
 REM If node is missing, exits with instructions to install it manually.
 REM ============================================================================
 
@@ -38,21 +45,22 @@ where git >nul 2>&1
 if errorlevel 1 (
     echo Git not found. Attempting to download repository as ZIP...
     :: Use PowerShell to download and extract the ZIP
-    powershell -NoProfile -Command "^
-        \$ErrorActionPreference = 'Stop'; ^
-        \$zipPath = '%TEMP%\gyroclopter.zip'; ^
-        \$url = 'https://github.com/ryanraposo/gyroclopter/archive/refs/heads/dev.zip'; ^
-        try { ^
-            Invoke-WebRequest -Uri \$url -OutFile \$zipPath -UseBasicParsing; ^
-            Expand-Archive -Path \$zipPath -DestinationPath '%TEMP%\gyroclopter-temp' -Force; ^
-            move /Y '%TEMP%\gyroclopter-temp\gyroclopter-dev' gyroclopter; ^
-            Remove-Item \$zipPath -Force; ^
-            Remove-Item -Recurse -Force '%TEMP%\gyroclopter-temp'; ^
-            Write-Host 'Repository downloaded and extracted successfully.'; ^
-        } catch { ^
-            Write-Error 'Failed to download or extract repository.'; ^
-            exit 1; ^
-        }"
+    powershell -NoProfile -Command "& {
+        \$ErrorActionPreference = 'Stop';
+        \$zipPath = '%TEMP%\gyroclopter.zip';
+        \$url = 'https://github.com/ryanraposo/gyroclopter/archive/refs/heads/main.zip';
+        try {
+            Invoke-WebRequest -Uri \$url -OutFile \$zipPath -UseBasicParsing;
+            Expand-Archive -Path \$zipPath -DestinationPath '%TEMP%\gyroclopter-temp' -Force;
+            Move -Path '%TEMP%\gyroclopter-temp\gyroclopter-main' -Destination 'gyroclopter' -Force;
+            Remove-Item \$zipPath -Force;
+            Remove-Item -Recurse -Force '%TEMP%\gyroclopter-temp';
+            Write-Host 'Repository downloaded and extracted successfully.';
+        } catch {
+            Write-Error 'Failed to download or extract repository.';
+            exit 1;
+        }
+    }"
     if errorlevel 1 (
         call :error "Failed to download repository. Please install git manually from https://git-scm.com/ and re-run this script."
     )
@@ -104,10 +112,10 @@ Run it repeatedly – it will safely ensure dependencies are present and the rep
 
 ## Linux
 
+The following Bash script prepares a Linux development environment, ensuring Git and Node.js are installed, checking for required mouse‑control tools, cloning or updating the repository, and installing npm dependencies. It can be safely re‑run.
+
 <details>
 <summary>Click to expand</summary>
-
-### Idempotent setup script (save as `setup-linux.sh`)
 
 ```bash
 #!/usr/bin/env bash
@@ -116,7 +124,7 @@ set -euo pipefail
 # ============================================================================
 # Idempotent setup for Gyroclopter on Linux.
 # Ensures git and node are present, and the repository is available.
-// If git is missing, attempts to download the repository as a ZIP file.
+// If git is missing, downloads the repository as a ZIP file.
 // If node is missing, exits with instructions to install it manually.
 // ============================================================================
 
@@ -138,12 +146,12 @@ if ! command -v git &>/dev/null; then
         error "Neither curl nor wget is available. Please install git or one of curl/wget to download the repository."
     fi
     ZIP_FILE="$(mktemp).zip"
-    REPO_URL="https://github.com/ryanraposo/gyroclopter/archive/refs/heads/dev.zip"
+    REPO_URL="https://github.com/ryanraposo/gyroclopter/archive/refs/heads/main.zip"
     $DOWNLOAD_CMD "$ZIP_FILE" "$REPO_URL" || error "Failed to download repository ZIP."
     # Unzip
     if command -v unzip &>/dev/null; then
         unzip -q "$ZIP_FILE" -d "$(dirname "$ZIP_FILE")" || error "Failed to extract ZIP."
-        mv "$(dirname "$ZIP_FILE")/gyroclopter-dev" gyroclopter || error "Failed to rename extracted directory."
+        mv "$(dirname "$ZIP_FILE")/gyroclopter-main" gyroclopter || error "Failed to rename extracted directory."
     else
         error "unzip is required to extract the repository ZIP. Please install unzip."
     fi
@@ -207,6 +215,8 @@ Make it executable (`chmod +x setup-linux.sh`) and run it anytime.
 
 ## macOS
 
+The following Bash script sets up the development environment on macOS, verifying Git and Node.js, cloning or updating the repository, and installing npm dependencies. It also notes that mouse injection is not yet implemented on macOS. The script is idempotent and can be re‑run safely.
+
 <details>
 <summary>Click to expand</summary>
 
@@ -219,7 +229,7 @@ set -euo pipefail
 # ============================================================================
 # Idempotent setup for Gyroclopter on macOS.
 // Ensures git and node are present, and the repository is available.
-// If git is missing, attempts to download the repository as a ZIP file.
+// If git is missing, downloads the repository as a ZIP file.
 // If node is missing, exits with instructions to install it manually.
 // ============================================================================
 
@@ -236,13 +246,13 @@ if ! command -v git &>/dev/null; then
         error "curl is required to download the repository ZIP. Please install curl or git."
     fi
     ZIP_FILE="$(mktemp).zip"
-    REPO_URL="https://github.com/ryanraposo/gyroclopter/archive/refs/heads/dev.zip"
+    REPO_URL="https://github.com/ryanraposo/gyroclopter/archive/refs/heads/main.zip"
     curl -L -o "$ZIP_FILE" "$REPO_URL" || error "Failed to download repository ZIP."
     if ! command -v unzip &>/dev/null; then
         error "unzip is required to extract the repository ZIP. Please install unzip."
     fi
     unzip -q "$ZIP_FILE" -d "$(dirname "$ZIP_FILE")" || error "Failed to extract ZIP."
-    mv "$(dirname "$ZIP_FILE")/gyroclopter-dev" gyroclopter || error "Failed to rename extracted directory."
+    mv "$(dirname "$ZIP_FILE")/gyroclopter-main" gyroclopter || error "Failed to rename extracted directory."
     rm -f "$ZIP_FILE"
     echo "Repository downloaded and extracted successfully."
 else
@@ -308,7 +318,7 @@ npm install
 npm run dev
 ```
 
-A QR code appears in the terminal. Scan it with your phone, accept the self-signed certificate warning, grant motion permission, and calibrate. You're now controlling the mouse.
+A QR code appears in the terminal. Scan it with your phone, accept the self‑signed certificate warning, grant motion permission, and calibrate. You're now controlling the mouse.
 
 ### Build a distributable
 
