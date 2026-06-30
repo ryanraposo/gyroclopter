@@ -1,7 +1,7 @@
 <br/>
 <div align="center">
   <a href="" rel="noopener">
-  <img width=300px src="./gc.png" alt="gyroclopter"></a>
+  <img width=300px src="./hero.png" alt="gyroclopter"></a>
 </div>
 <br/>
 <div align="center">

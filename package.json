@@ -1,7 +1,7 @@
 {
   "name": "gyroclopter",
   "version": "0.5.0",
-  "description": "Electron desktop app + headless server for wireless gyroscopic air mouse.",
+  "description": "Wireless gyroscopic air mouse.",
   "author": {
     "name": "ryanraposo",
     "email": "raposo.ryan@gmail.com"
