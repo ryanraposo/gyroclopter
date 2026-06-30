@@ -20,19 +20,14 @@
   "scripts": {
     "start": "electron .",
     "test": "jest",
-    "build:icons": "node build-icon.js",
+    "build:icons": "node scripts/build-icon.js",
     "clean": "node -e \"const fs=require('fs');['dist','resources'].forEach(d=>fs.rmSync(d,{recursive:true,force:true}))\"",
 
     "build": "npm run clean && npm run build:icons && electron-builder --win --linux",
     "build:win": "electron-builder --win",
-    "build:linux": "electron-builder --linux",
-
-    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0",
-    "changelog:all": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0",
-    "release": "npm run changelog && git add CHANGELOG.md"
+    "build:linux": "electron-builder --linux"
   },
   "devDependencies": {
-      "conventional-changelog-cli": "^4.1.0",
       "jest": "^29.7.0",
       "pngjs": "^7.0.0",
       "electron": "^30.5.1",
