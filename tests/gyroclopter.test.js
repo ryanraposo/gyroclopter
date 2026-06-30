@@ -21,6 +21,21 @@ const { WebSocketServer } = require('ws');
 // Import server module exports
 const { getCertificates, ensureAppDir, getLocalIp, CONFIG } = require('../server.js');
 
+// Mock Electron IPC
+const mockIpcRenderer = {
+  send: jest.fn(),
+  on: jest.fn()
+};
+
+const mockContextBridge = {
+  exposeInMainWorld: jest.fn()
+};
+
+jest.mock('electron', () => ({
+  ipcRenderer: mockIpcRenderer,
+  contextBridge: mockContextBridge
+}));
+
 describe('Gyroclopter Test Suite', () => {
   let tempDir;
 
