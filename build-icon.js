@@ -9,7 +9,7 @@
   const path = require('path');
   const { PNG } = require('pngjs');
 
-  const ROOT = path.join(__dirname, '..');
+  const ROOT = __dirname;
   const SOURCE = path.join(ROOT, 'build', 'icon-source.png');
   const BUILD = path.join(ROOT, 'build');
   const ICONS_DIR = path.join(BUILD, 'icons');
@@ -113,11 +113,15 @@
     console.log(`  wrote ${faviconPath} (${ico.length} bytes)`);
 
     // ------------------------------------------------------------
-    // 3. Copy the ICO into desktop/src/favicon.ico
+    // 3. Copy ICO to app/ for Electron (if needed)
     // ------------------------------------------------------------
-    const desktopFavicon = path.join(ROOT, 'desktop', 'src', 'favicon.ico');
-    fs.copyFileSync(icoPath, desktopFavicon);
-    console.log(`  wrote ${desktopFavicon} (${ico.length} bytes)`);
+    const appFavicon = path.join(ROOT, 'app', 'favicon.ico');
+    try {
+      fs.copyFileSync(icoPath, appFavicon);
+      console.log(`  wrote ${appFavicon} (${ico.length} bytes)`);
+    } catch (_) {
+      // Optionally create app favicon
+    }
 
   }
 

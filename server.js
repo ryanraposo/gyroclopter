@@ -1,25 +1,21 @@
 /**
  * Gyroclopter: A LAN-based air mouse using mobile gyroscopes.
  *
- * When spawned as a child process by the Neutralino desktop app, this server
- * communicates its status as JSON lines on stdout. The Neutralino parent parses
- * those lines to drive the desktop UI (QR code, connection count, etc.).
- *
- * Features:
+ * Server features:
  * - Low-latency mouse control via WebSocket.
  * - Automatic self-signed SSL certificate generation for secure sensor access.
  * - Native Windows mouse injection via PowerShell (zero native Node dependencies).
- * - JSON stdout protocol for headless operation under Neutralino.
+ * - JSON stdout protocol for parent process integration.
  */
 
-// Force a console window on Windows when run directly (not as Neutralino child).
+// Force a console window on Windows when run directly (not as a child process).
 // We write a tiny .bat launcher to a known path and `start` it with an explicit
 // empty window title. Passing the bat path as the second quoted arg of `start`
 // (not the third) is required: `start "<title>" "<command>"` is the only form
 // that survives paths with spaces. The previous form `cmd /c start cmd /k <path>`
 // fails with "The batch file cannot be found" because `start` interprets its
 // first quoted arg as a title and drops the rest.
-if (require.main === module && process.platform === 'win32' && !process.env.IS_CHILD && !process.env.IS_NEUTRALINO_CHILD) {
+if (require.main === module && process.platform === 'win32' && !process.env.IS_CHILD) {
     const { spawn } = require('child_process');
     const path = require('path');
     const fs = require('fs');
@@ -350,7 +346,7 @@ function getLocalIp() {
 
 /**
  * Writes a single JSON status line to stdout, terminated with a newline,
- * and forces a flush so the Neutralino parent never sees a partial line
+ * and forces a flush so the parent process never sees a partial line
  * (stdout is fully buffered when piped on Windows).
  */
 function emitStatus(obj) {
@@ -423,7 +419,8 @@ function handleWsMessage(data, mouse) {
 
 /**
  * Main application entry point.
- * Communicates with the Neutralino parent via JSON lines on stdout.
+ *
+ * Communicates status via JSON lines on stdout for parent process integration.
  *
  * Fatal startup errors (EADDRINUSE, cert generation failure, etc.) are reported
  * via a `{"event":"error", ...}` JSON line so the parent can surface them in the
@@ -446,7 +443,7 @@ async function main() {
 
         // EADDRINUSE etc. must be caught here, otherwise Node throws
         // "Unhandled 'error' event" and the process exits without telling the
-        // Neutralino parent what happened.
+        // parent process what happened.
         server.on('error', (err) => {
             emitStatus({ event: 'error', code: err.code || 'LISTEN_ERROR', message: err.message });
             mouse.dispose();

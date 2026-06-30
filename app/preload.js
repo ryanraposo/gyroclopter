@@ -1,0 +1,8 @@
+// preload.js – IPC bridge for server events
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  onServerEvent: (callback) => ipcRenderer.on('server-event', (event, msg) => callback(msg)),
+  onServerExit: (callback) => ipcRenderer.on('server-exit', callback),
+  stopServer: () => ipcRenderer.send('stop-server')
+});
