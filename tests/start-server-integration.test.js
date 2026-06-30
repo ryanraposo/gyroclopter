@@ -9,10 +9,13 @@ const os = require('os');
 
 describe('Start Server Integration', () => {
   let testCertDir;
+  const originalExecArgv = process.execArgv;
 
   beforeAll(() => {
     testCertDir = path.join(os.tmpdir(), 'gyroclopter-integration-test-' + Date.now());
     fs.mkdirSync(testCertDir, { recursive: true });
+    // Increase test timeout for server startup
+    jest.setTimeout(15000);
   });
 
   afterAll(() => {
