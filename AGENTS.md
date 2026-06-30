@@ -39,6 +39,12 @@ npm run build
 
 ---
 
+## CHANGELOG Maintenance
+
+See [RELEASE.md](RELEASE.md) for instructions on updating `CHANGELOG.md` before merging to `main`.
+
+---
+
 ## Code Style Guidelines
 - **CommonJS** (`require` / `module.exports`).
 - Indentation: **2 spaces**.
