@@ -1,4 +1,4 @@
-// app/main.js - Desktop UI controller
+// app/renderer.js - Desktop UI controller
 const STATE = {
   serverPid: null,
   running: false,

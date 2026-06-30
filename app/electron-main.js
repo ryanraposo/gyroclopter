@@ -46,16 +46,10 @@ function createWindow() {
 }
 
 function getServerPath() {
-  const platform = process.platform;
-  const ext = platform === 'win32' ? '.exe' : '';
-  const serverName = 'gyroclopter-server' + ext;
-  
-  // In production, server is in resources/app.asar or extracted
-  if (process.resourcesPath) {
+  const { app } = require('electron');
+  if (app.isPackaged) {
     return path.join(process.resourcesPath, 'app.asar', 'server.js');
   }
-  
-  // In development, server.js is in project root
   return path.join(__dirname, '..', 'server.js');
 }
 
@@ -94,6 +88,20 @@ async function startServer() {
         } catch (_) {
           // Ignore non-JSON lines
         }
+      }
+    });
+    
+    serverProcess.on('error', (err) => {
+      STATE.running = false;
+      STATE.serverProcess = null;
+      if (mainWindow) {
+        mainWindow.webContents.send('server-event', { event: 'error', message: err.message });
+      }
+    });
+
+    serverProcess.stderr.on('data', (data) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('server-event', { event: 'stderr', data: data.toString() });
       }
     });
     
