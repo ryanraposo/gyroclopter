@@ -9,7 +9,7 @@
   const path = require('path');
   const { PNG } = require('pngjs');
 
-  const ROOT = __dirname;
+  const ROOT = path.join(__dirname, '..');
   const SOURCE = path.join(ROOT, 'build', 'icon-source.png');
   const BUILD = path.join(ROOT, 'build');
   const ICONS_DIR = path.join(BUILD, 'icons');
