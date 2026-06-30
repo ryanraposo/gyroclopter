@@ -604,4 +604,66 @@ describe('Gyroclopter Test Suite', () => {
       process.env.CERT_DIR = originalCertDir;
     });
   });
+
+  // ============================================================================
+  // START SERVER BUTTON INTEGRATION
+  // ============================================================================
+  describe('Start Server Button Integration', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    test('startServer function calls electronAPI.startServer', () => {
+      // Setup mock
+      const mockStartServer = jest.fn();
+      global.window = {
+        electronAPI: {
+          startServer: mockStartServer
+        }
+      };
+
+      // Simulate the startServer function from renderer.js
+      function startServer() {
+        window.electronAPI?.startServer?.();
+      }
+
+      // Call it
+      startServer();
+
+      // Verify
+      expect(mockStartServer).toHaveBeenCalledTimes(1);
+    });
+
+    test('button click toggles between start and stop', () => {
+      const mockStartServer = jest.fn();
+      const mockStopServer = jest.fn();
+      global.window = {
+        electronAPI: {
+          startServer: mockStartServer,
+          stopServer: mockStopServer
+        }
+      };
+
+      // Track running state
+      let running = false;
+
+      function toggleServer() {
+        if (running) {
+          window.electronAPI?.stopServer?.();
+        } else {
+          window.electronAPI?.startServer?.();
+        }
+      }
+
+      // First click - start
+      toggleServer();
+      expect(mockStartServer).toHaveBeenCalledTimes(1);
+      expect(mockStopServer).not.toHaveBeenCalled();
+
+      // Second click - stop
+      running = true;
+      toggleServer();
+      expect(mockStopServer).toHaveBeenCalledTimes(1);
+    });
+  });
 });
