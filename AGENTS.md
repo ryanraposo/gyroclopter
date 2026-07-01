@@ -59,14 +59,54 @@ See [RELEASE.md](RELEASE.md) for instructions on updating `CHANGELOG.md` before 
 
 **📋 See [ARCHITECTURE.md](ARCHITECTURE.md) for complete application documentation.**
 
-- **Electron** provides the desktop UI and spawns the embedded server binary.
-- The server emits JSON lines on `stdout` and handles HTTPS/WSS.
-- Mouse injection varies by platform:
-  - Windows: PowerShell + `user32.dll`.
-  - Linux (X11): `xdotool`.
-  - Linux (Wayland): `ydotool`.
-  - macOS: **Not yet implemented** – avoid adding macOS mouse controls.
-- SSL certificates are self‑signed and generated at runtime in the OS temporary directory (or `CERT_DIR` if set).
+### High-Level Overview
+- **Electron Desktop App** - System tray UI, server lifecycle management, IPC
+- **HTTPS/WSS Server** (`server.js`) - Serves mobile client, handles WebSocket commands
+- **Mobile Web Client** (`client.html`) - Captures device motion, sends mouse commands over LAN
+
+### Data Flow
+```
+Electron Main → spawns → server.js (child process)
+                      ↓
+              HTTPS :8443 + WebSocket
+                      ↓
+              Mobile browser (LAN)
+                      ↓
+          DeviceMotion → WS commands → Mouse injection
+```
+
+### Platform-Specific Mouse Injection
+- **Windows**: PowerShell + P/Invoke (`user32.dll::mouse_event`)
+  - Spawns temp `.ps1` script, waits for "READY" signal
+  - Command protocol: `MOVE dx dy`, `LEFT_DOWN`, `LEFT_UP`, `CLICK_RIGHT`, `SCROLL delta`
+- **Linux (X11)**: `xdotool` commands
+- **Linux (Wayland)**: `ydotool` commands
+- **macOS**: **Not implemented** – avoid adding macOS mouse controls
+
+### JSON stdout Protocol (Server → Electron)
+Server emits structured JSON lines for parent process integration:
+```json
+{ "event": "started", "ip": "192.168.1.100", "port": 8443, "qr": "data:image/png;base64,..." }
+{ "event": "connection", "count": 1 }
+{ "event": "disconnection", "count": 0 }
+{ "event": "stopped" }
+{ "event": "error", "code": "EADDRINUSE", "message": "..." }
+```
+
+### SSL Certificates
+- Self-signed, generated at runtime using `selfsigned` library
+- Stored in OS temp dir (`/tmp/gyroclopter/` or `CERT_DIR` env var)
+- Valid for 365 days, reused if valid PEM files exist
+- Required for mobile browsers to allow DeviceMotion API access
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `app/electron-main.js` | Main process: tray, IPC, server spawn/lifecycle |
+| `app/preload.js` | Secure IPC bridge (context isolation) |
+| `app/renderer.js` | UI controller: QR display, status, buttons |
+| `server.js` | Core engine: HTTPS, WSS, mouse controllers |
+| `client.html` | Mobile web client: gyro controls, WebSocket |
 
 ---
 
