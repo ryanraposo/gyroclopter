@@ -56,6 +56,9 @@ See [RELEASE.md](RELEASE.md) for instructions on updating `CHANGELOG.md` before 
 ---
 
 ## Runtime Architecture (Reference)
+
+**📋 See [ARCHITECTURE.md](ARCHITECTURE.md) for complete application documentation.**
+
 - **Electron** provides the desktop UI and spawns the embedded server binary.
 - The server emits JSON lines on `stdout` and handles HTTPS/WSS.
 - Mouse injection varies by platform:
