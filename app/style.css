@@ -19,11 +19,11 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  padding: 24px;
+  padding: 20px;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 header {
@@ -45,8 +45,9 @@ h1 span {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .qr-section {
@@ -152,23 +153,27 @@ h1 span {
 }
 
 .instructions {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-dim);
-  line-height: 1.6;
+  line-height: 1.5;
+  flex-shrink: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .instructions ol {
-  padding-left: 18px;
+  padding-left: 16px;
 }
 
 .instructions li {
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .footer {
   margin-top: auto;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-dim);
-  padding-top: 16px;
+  padding-top: 8px;
+  flex-shrink: 0;
 }
