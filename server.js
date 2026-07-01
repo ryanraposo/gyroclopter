@@ -15,7 +15,9 @@
 // that survives paths with spaces. The previous form `cmd /c start cmd /k <path>`
 // fails with "The batch file cannot be found" because `start` interprets its
 // first quoted arg as a title and drops the rest.
-if (require.main === module && process.platform === 'win32' && !process.env.IS_CHILD) {
+// 
+// Skip自立起動 if stdout is not a TTY (i.e., being piped by a parent process like Electron).
+if (require.main === module && process.platform === 'win32' && !process.env.IS_CHILD && process.stdout.isTTY) {
     const { spawn } = require('child_process');
     const path = require('path');
     const fs = require('fs');

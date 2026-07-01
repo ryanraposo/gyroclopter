@@ -16,6 +16,8 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    title: 'Gyroclopter',
+    icon: path.join(__dirname, 'favicon.ico'),
     width: 420,
     height: 680,
     resizable: false,
