@@ -110,6 +110,55 @@ Server emits structured JSON lines for parent process integration:
 
 ---
 
+## 📁 Project Structure
+
+```
+gyroclopter/
+├── app/                          # Electron desktop UI
+│   ├── electron-main.js          # Main process: tray, IPC, server lifecycle
+│   ├── preload.js                # IPC bridge (context isolation)
+│   ├── renderer.js               # UI controller (QR, status, buttons)
+│   ├── index.html                # Desktop UI structure
+│   ├── style.css                 # Desktop UI styling (dark theme)
+│   └── favicon.ico               # Tray/app icon (16x16)
+│
+├── server.js                     # Core server (HTTPS + WSS + mouse control)
+├── client.html                   # Mobile web client (gyro controls)
+│
+├── tests/                        # Jest test suite
+│   ├── gyroclopter.test.js       # Certificate, HTTP, WebSocket tests
+│   ├── server-path.test.js       # Path resolution tests
+│   └── start-server-integration.test.js  # End-to-end startup tests
+│
+├── scripts/                      # Build utilities
+│   ├── build-icon.js             # Generates icon from hero.png
+│   └── changelog.sh              # Changelog generation script
+│
+├── build/                        # Build resources (icons, etc.)
+│   ├── icon.ico                  # Windows app/tray icon (generated)
+│   ├── icons/                    # Linux icon set (generated)
+│   └── tray.png                  # System tray icon source
+│
+├── dist/                         # Build output (gitignored)
+│   ├── win-unpacked/             # Unpacked Windows build (dev)
+│   ├── gyroclopter-0.5.0.exe     # Windows NSIS installer
+│   └── gyroclopter_0.5.0_amd64.deb  # Linux Debian package
+│
+├── package.json                  # Dependencies, scripts, electron-builder config
+├── package-lock.json             # Locked dependency versions
+├── playwright.config.js          # E2E test configuration
+│
+├── AGENTS.md                     # AI agent development guidelines
+├── ARCHITECTURE.md               # Complete architecture documentation
+├── RELEASE.md                    # Release process documentation
+├── CHANGELOG.md                  # Version history
+├── CONTRIBUTING.md               # Contribution guidelines
+├── README.md                     # User documentation
+└── hero.png                      # App hero image / icon source
+```
+
+---
+
 ## Security Considerations
 - Server listens on `0.0.0.0:8443` with self‑signed SSL; only local‑network users should connect.
 - No authentication/origin checking – treat the service as trusted LAN.
