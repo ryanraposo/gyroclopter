@@ -163,6 +163,7 @@ h1 span {
 
 .instructions ol {
   padding-left: 16px;
+  margin-top: 0;
 }
 
 .instructions li {
