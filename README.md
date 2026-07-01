@@ -82,6 +82,46 @@ Produces:
 
 ---
 
+## Iconography
+
+### Source File
+
+All icons are generated from a single source file:
+
+- **Source:** `build/icon-source.png` (512x512 px PNG recommended)
+
+Update this file when changing app branding. It is the single source of truth for all icon assets.
+
+### Generate Icon Assets
+
+Before building, generate all icon formats:
+
+```bash
+npm run build:icons
+```
+
+This creates:
+
+| Asset | Format | Usage |
+|-------|--------|-------|
+| `build/icon.ico` | Multi-size ICO | Windows app, installer, uninstaller |
+| `build/icons/*.png` | PNG (16–256 px) | Linux `.deb` package |
+| `build/resources/favicon.ico` | ICO | Electron window (16x16) |
+| `app/favicon.ico` | ICO | Windows system tray |
+
+### Final Build Artifacts
+
+**Windows:**
+- Installer: `dist/gyroclopter-*.exe` (uses `build/icon.ico`)
+- App: Embedded icon in executable
+- Tray: 16x16 favicon in system tray
+
+**Linux:**
+- Package: `dist/gyroclopter_*.deb` (uses `build/icons/` directory)
+- System icons: Installed via Debian package manager
+
+---
+
 ## Changelog Generation
 
 Automatically generate `CHANGELOG.md` from conventional commit messages:

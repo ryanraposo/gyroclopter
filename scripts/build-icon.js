@@ -1,4 +1,4 @@
-  /**
+/**
    * Builds Windows .ico and Linux .png icon assets from build/icon-source.png.
    *
    * Outputs:
@@ -103,17 +103,7 @@
     console.log(`  wrote ${icoPath} (${ico.length} bytes)`);
 
     // ------------------------------------------------------------
-    // 2. Copy the ICO into build/resources/favicon.ico
-    // ------------------------------------------------------------
-    const faviconDir = path.join(BUILD, 'resources');
-    fs.mkdirSync(faviconDir, { recursive: true });
-
-    const faviconPath = path.join(faviconDir, 'favicon.ico');
-    fs.copyFileSync(icoPath, faviconPath);
-    console.log(`  wrote ${faviconPath} (${ico.length} bytes)`);
-
-    // ------------------------------------------------------------
-    // 3. Copy ICO to app/ for Electron (if needed)
+    // 2. Copy ICO to app/ for Electron tray icon
     // ------------------------------------------------------------
     const appFavicon = path.join(ROOT, 'app', 'favicon.ico');
     try {
