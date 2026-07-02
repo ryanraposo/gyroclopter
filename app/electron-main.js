@@ -1,7 +1,6 @@
 // app/main.js - Electron main process
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, utilityProcess } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
 const os = require('os');
 const { networkInterfaces } = require('os');
 
@@ -63,12 +62,16 @@ async function startServer() {
   console.log('Starting server:', serverPath);
   console.log('Is packaged:', require('electron').app.isPackaged);
   console.log('Resources path:', process.resourcesPath);
-  console.log('Exec path:', process.execPath);
   
   try {
-    // Use electron's node binary which can read from asar archives
-    const serverProcess = spawn(process.execPath, [serverPath], {
-      stdio: ['ignore', 'pipe', 'pipe']
+    // Use utilityProcess.fork for better Electron integration
+    // This handles asar archives automatically and has better lifecycle management
+    const serverProcess = utilityProcess.fork(serverPath, [], {
+      stdio: 'pipe',
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1'
+      }
     });
     
     STATE.serverProcess = serverProcess;
@@ -142,21 +145,10 @@ async function startServer() {
 function stopServer() {
   if (STATE.serverProcess) {
     console.log('Stopping server process...');
-    // Send SIGTERM first
-    STATE.serverProcess.kill('SIGTERM');
+    // utilityProcess has a kill() method that sends SIGTERM
+    STATE.serverProcess.kill();
     
-    // Force kill after 2 seconds if still running
-    setTimeout(() => {
-      if (STATE.serverProcess && STATE.serverProcess.pid) {
-        try {
-          process.kill(STATE.serverProcess.pid, 'SIGKILL');
-          console.log('Force killed server process');
-        } catch (e) {
-          // Process already dead
-        }
-      }
-    }, 2000);
-    
+    // Clear references immediately
     STATE.serverProcess = null;
     STATE.serverPid = null;
   }
