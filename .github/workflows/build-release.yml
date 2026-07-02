@@ -1,6 +1,12 @@
 name: build-release
 
 on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to post artifacts to'
+        required: false
+        type: string
   pull_request:
     branches:
       - main
@@ -35,8 +41,6 @@ jobs:
   build-windows:
     needs: test
     runs-on: windows-latest
-    outputs:
-      artifact-url: ${{ steps.upload-artifact-url.outputs.url }}
     steps:
       - uses: actions/checkout@v5
       
@@ -71,16 +75,9 @@ jobs:
           path: dist/*.exe
           if-no-files-found: error
 
-      - name: Get artifact URL
-        id: upload-artifact-url
-        run: |
-          echo "url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ github.run_attempt }}" >> $GITHUB_OUTPUT
-
   build-linux:
     needs: test
     runs-on: ubuntu-latest
-    outputs:
-      artifact-url: ${{ steps.upload-artifact-url.outputs.url }}
     steps:
       - uses: actions/checkout@v5
       
@@ -112,32 +109,37 @@ jobs:
           path: dist/*.deb
           if-no-files-found: error
 
-      - name: Get artifact URL
-        id: upload-artifact-url
-        run: |
-          echo "url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ github.run_attempt }}" >> $GITHUB_OUTPUT
-
-  release:
+  post-artifacts:
     needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v5
-      
       - name: Post build artifacts comment
-        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
+            const prNumber = context.payload.inputs?.pr_number || context.payload.pull_request?.number;
+            if (!prNumber) {
+              console.log('No PR number available - skipping comment');
+              return;
+            }
+            
             const artifactUrl = `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
             const comment = `## ✅ Build Artifacts Ready\n\n| Platform | Artifact |\n|----------|----------|\n| Windows | [Download .exe](${artifactUrl}) |\n| Linux | [Download .deb](${artifactUrl}) |\n\n> Click the links above to download the built binaries from this workflow run. Artifacts are retained for 60 days.`;
             
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
+              issue_number: parseInt(prNumber),
               body: comment
             });
+
+  release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v5
       
       - uses: actions/download-artifact@v5
         with:
@@ -145,7 +147,6 @@ jobs:
       
       - name: Generate release notes
         id: release_notes
-        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           
@@ -161,8 +162,7 @@ jobs:
             echo "RELEASE_NOTES=Initial release" >> $GITHUB_OUTPUT
           fi
 
-      - name: Publish release (tag push)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish release
         uses: softprops/action-gh-release@v3
         with:
           name: ${{ github.ref_name }}
@@ -173,15 +173,3 @@ jobs:
             artifacts/**/*.exe
             artifacts/**/*.deb
             CHANGELOG.md
-
-      - name: Update draft release (main push)
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: latest
-          name: "latest (draft — verify before publishing)"
-          draft: true
-          prerelease: true
-          files: |
-            artifacts/**/*.exe
-            artifacts/**/*.deb
