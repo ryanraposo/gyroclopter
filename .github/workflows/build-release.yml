@@ -1,15 +1,15 @@
 name: build-release
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
       - dev
-  pull_request:
-    branches:
-      - main
-  tags:
-    - 'v*'
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
