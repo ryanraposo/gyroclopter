@@ -54,6 +54,7 @@
       "server.js",
       "client.html"
     ],
+    "extraResources": [],
     "directories": {
       "buildResources": "build"
     },
@@ -77,7 +78,8 @@
       "target": "deb",
       "icon": "build/icons",
       "category": "Utility",
-      "maintainer": "Ryan Raposo <raposo.ryan@gmail.com>"
+      "maintainer": "Ryan Raposo <raposo.ryan@gmail.com>",
+      "executableArgs": ["--no-sandbox"]
     }
   }
 }
