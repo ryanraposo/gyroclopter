@@ -45,11 +45,13 @@ jobs:
           $exe = Get-ChildItem -LiteralPath "dist" -Filter "*.exe" | Select-Object -First 1
           if (-not $exe) { Write-Error "No .exe found in dist/"; exit 1 }
           Write-Host "Smoke test: $($exe.Name) exists"
-      - uses: actions/upload-artifact@v5
+      - id: upload-win
+        uses: mmkal/artifact.ci/upload@main
         with:
           name: windows-installer
           path: dist/*.exe
           if-no-files-found: error
+          artifactci-visibility: public
 
   build-linux:
     needs: test
@@ -69,49 +71,53 @@ jobs:
           DEB=$(ls dist/*.deb | head -1)
           dpkg-deb -I "$DEB"
           echo "Smoke test passed: $(basename $DEB) is valid"
-      - uses: actions/upload-artifact@v5
+      - id: upload-linux
+        uses: mmkal/artifact.ci/upload@main
         with:
           name: linux-deb
           path: dist/*.deb
           if-no-files-found: error
+          artifactci-visibility: public
 
   post-artifacts:
-    needs: [build-windows, build-linux]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            const prNumber = context.payload.pull_request?.number;
-            if (!prNumber) return;
+      needs: [build-windows, build-linux]
+      runs-on: ubuntu-latest
+      if: github.event_name == 'pull_request'
+      steps:
+        - uses: actions/github-script@v7
+          with:
+            script: |
+              const prNumber = context.payload.pull_request?.number;
+              if (!prNumber) return;
             
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber
-            });
-            
-            const artifactComments = comments.filter(c => 
-              c.user?.type === 'Bot' && c.body?.includes('Build Artifacts Ready')
-            );
-            
-            // Delete all previous artifact comments
-            for (const comment of artifactComments) {
-              await github.rest.issues.deleteComment({
+              const { data: comments } = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                comment_id: comment.id
+                issue_number: prNumber
               });
-            }
             
-            const artifactUrl = `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: `## ✅ Build Artifacts Ready\n\n| Platform | Artifact |\n|----------|----------|\n| Windows | [Download .exe](${artifactUrl}) |\n| Linux | [Download .deb](${artifactUrl}) |\n\n> Artifacts retained for 90 days.`
-            });
+              const artifactComments = comments.filter(c => 
+                c.user?.type === 'Bot' && c.body?.includes('Build Artifacts Ready')
+              );
+            
+              // Delete all previous artifact comments
+              for (const comment of artifactComments) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id
+                });
+              }
+            
+              const winUrl = '${{ steps.upload-win.outputs.artifactci_run_url }}';
+                          const linuxUrl = '${{ steps.upload-linux.outputs.artifactci_run_url }}';
+            
+                          await github.rest.issues.createComment({
+                            owner: context.repo.owner,
+                            repo: context.repo.repo,
+                            issue_number: prNumber,
+                            body: `## ✅ Build Artifacts Ready\n\n| Platform | Download |\n|----------|----------|\n| Windows | [\${{ github.event.repository.name }}.exe](${winUrl}) |\n| Linux | [\${{ github.event.repository.name }}.deb](${linuxUrl}) |\n\n> Direct links via artifact.ci (90-day retention).`
+                          });
 
   release:
     needs: [build-windows, build-linux]
