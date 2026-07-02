@@ -19,18 +19,18 @@ function getServerPath(__dirname, resourcesPath) {
 
 describe('Server Path Resolution', () => {
   test('uses relative path in development mode', () => {
-    const __dirname = '/home/ryan/repo/gyroclopter/app';
+    const __dirname = path.join('home', 'ryan', 'repo', 'gyroclopter', 'app');
     const serverPath = getServerPath(__dirname, null);
     
-    expect(serverPath).toBe('/home/ryan/repo/gyroclopter/server.js');
+    expect(serverPath).toBe(path.join('home', 'ryan', 'repo', 'gyroclopter', 'server.js'));
   });
 
   test('uses resourcesPath in production mode', () => {
-    const __dirname = '/opt/gyroclopter/resources/app.asar/app';
-    const resourcesPath = '/opt/gyroclopter/resources';
+    const __dirname = path.join('opt', 'gyroclopter', 'resources', 'app.asar', 'app');
+    const resourcesPath = path.join('opt', 'gyroclopter', 'resources');
     const serverPath = getServerPath(__dirname, resourcesPath);
     
-    expect(serverPath).toBe('/opt/gyroclopter/resources/app.asar/server.js');
+    expect(serverPath).toBe(path.join('opt', 'gyroclopter', 'resources', 'app.asar', 'server.js'));
   });
 
   test('handles Windows paths correctly', () => {
