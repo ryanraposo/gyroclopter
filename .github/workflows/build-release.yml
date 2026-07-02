@@ -30,6 +30,8 @@ jobs:
   build-windows:
     needs: test
     runs-on: windows-latest
+    outputs:
+      artifact_url: ${{ steps.upload-win.outputs.artifactci-run-url }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -37,7 +39,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       - run: npm ci
-      - run: npm run build:icons
       - run: npm run build:win
       - name: Smoke-test the .exe
         shell: pwsh
@@ -56,6 +57,8 @@ jobs:
   build-linux:
     needs: test
     runs-on: ubuntu-latest
+    outputs:
+      artifact_url: ${{ steps.upload-linux.outputs.artifactci-run-url }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -63,7 +66,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       - run: npm ci
-      - run: npm run build:icons
       - run: npm run build:linux
       - name: Smoke-test the .deb
         run: |
@@ -80,44 +82,44 @@ jobs:
           artifactci-visibility: public
 
   post-artifacts:
-      needs: [build-windows, build-linux]
-      runs-on: ubuntu-latest
-      if: github.event_name == 'pull_request'
-      steps:
-        - uses: actions/github-script@v7
-          with:
-            script: |
-              const prNumber = context.payload.pull_request?.number;
-              if (!prNumber) return;
-            
-              const { data: comments } = await github.rest.issues.listComments({
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request?.number;
+            if (!prNumber) return;
+          
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+          
+            const artifactComments = comments.filter(c => 
+              c.user?.type === 'Bot' && c.body?.includes('Build Artifacts Ready')
+            );
+          
+            // Delete all previous artifact comments
+            for (const comment of artifactComments) {
+              await github.rest.issues.deleteComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: prNumber
+                comment_id: comment.id
               });
-            
-              const artifactComments = comments.filter(c => 
-                c.user?.type === 'Bot' && c.body?.includes('Build Artifacts Ready')
-              );
-            
-              // Delete all previous artifact comments
-              for (const comment of artifactComments) {
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: comment.id
-                });
-              }
-            
-              const winUrl = '${{ steps.upload-win.outputs.artifactci_run_url }}';
-                          const linuxUrl = '${{ steps.upload-linux.outputs.artifactci_run_url }}';
-            
-                          await github.rest.issues.createComment({
-                            owner: context.repo.owner,
-                            repo: context.repo.repo,
-                            issue_number: prNumber,
-                            body: `## ✅ Build Artifacts Ready\n\n| Platform | Download |\n|----------|----------|\n| Windows | [\${{ github.event.repository.name }}.exe](${winUrl}) |\n| Linux | [\${{ github.event.repository.name }}.deb](${linuxUrl}) |\n\n> Direct links via artifact.ci (90-day retention).`
-                          });
+            }
+          
+            const winUrl = '${{ needs.build-windows.outputs.artifact_url }}';
+            const linuxUrl = '${{ needs.build-linux.outputs.artifact_url }}';
+          
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: `## ✅ Build Artifacts Ready\n\n| Platform | Download |\n|----------|----------|\n| Windows | [\${{ github.event.repository.name }}.exe](${winUrl}) |\n| Linux | [\${{ github.event.repository.name }}.deb](${linuxUrl}) |\n\n> Direct links via artifact.ci (90-day retention).`
+            });
 
   release:
     needs: [build-windows, build-linux]
