@@ -1,14 +1,63 @@
 # [0.5.0](https://github.com/ryanraposo/gyroclopter/compare/v0.3.1...v0.5.0) (2026-06-30)
 
 
-### Features
+### Added
 
-* bootstrap server start in setup scripts ([c9094be](https://github.com/ryanraposo/gyroclopter/commit/c9094be0f6a24171b7d3b4228103626132711825))
+* Electron desktop app with system tray, QR code pairing, and server lifecycle management
+* High-quality icons with Lanczos3 resampling and adaptive sharpening (16x16–512x512)
+* Favicon support for browser tab icons (desktop app and mobile client)
+* GitHub Actions CI/CD pipeline with automated builds and artifact posting
+* Direct download links via artifact.ci integration (90-day retention)
+* Automated PR comments with build artifact links (keeps latest 3)
+* Smart workflow triggers (PRs to main and v* tag pushes)
+* Smoke tests for .exe and .deb before posting artifact links
+* Platform-specific setup scripts in README.md
+* AGENTS.md with consolidated architecture docs and project structure
 
 
-### Reverts
+### Changed
 
-* Revert "Replace @yao-pkg/pkg with nexe for standalone binary builds" ([fc9baed](https://github.com/ryanraposo/gyroclopter/commit/fc9baedc87824b4ce307f47fb1fdcaa178e98a99))
+* Migrated to Electron with full desktop app (system tray, auto-start, single-instance lock)
+* Server spawning uses ELECTRON_RUN_AS_NODE for asar archive support
+* Updated to electron-builder v26 (resolved 5 high-severity tar vulnerabilities)
+* IPC architecture with secure context isolation and preload script bridge
+* Linux builds include --no-sandbox flag and tailable log files
+* Desktop window UI polish (taller window, removed visual gaps, updated screenshots)
+* Manual CHANGELOG maintenance (removed conventional-changelog)
+
+
+### Fixed
+
+* use ICO format for tray icon on Windows ([d0ad652](https://github.com/ryanraposo/gyroclopter/commit/d0ad652b18f71217d2e7e1eea3995daa6e25a224))
+* Cross-platform ICO generation using png-to-ico library
+* Rapid start/stop toggle prevention with state guards
+* Server errors properly emitted and displayed in UI
+* Windows build auto-start, window title/icon fixes
+* Playwright downgraded for stability
+
+
+### Removed
+
+* Conventional-changelog automated release notes
+
+
+### Security
+
+* Upgraded electron-builder from v24 to v26, resolving 5 high-severity tar vulnerabilities
+* Sharp library for high-quality image processing
+
+
+### Testing
+
+* Jest suite with 26 tests covering IPC, server paths, startup logic, UI interactions
+* Mock infrastructure for Electron IPC, server spawning, WebSocket handlers
+* CI enforcement requiring tests to pass before merge
+
+
+### Build Artifacts
+
+* Windows: gyroclopter-0.5.0.exe (NSIS installer)
+* Linux: gyroclopter_0.5.0_amd64.deb (Debian package)
 
 
 
