@@ -1,19 +1,10 @@
 name: build-release
 
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'PR number to post artifacts to'
-        required: false
-        type: string
   pull_request:
     branches:
       - main
   push:
-    branches:
-      - main
-      - dev
     tags:
       - 'v*'
 
