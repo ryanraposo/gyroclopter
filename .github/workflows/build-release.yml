@@ -105,23 +105,48 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     steps:
-      - name: Post build artifacts comment
+      - name: Manage artifact comments (max 3)
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = context.payload.inputs?.pr_number || context.payload.pull_request?.number;
+            const prNumber = context.payload.pull_request?.number;
             if (!prNumber) {
-              console.log('No PR number available - skipping comment');
+              console.log('No PR number available - skipping');
               return;
             }
             
+            // Get all comments from the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+            
+            // Find artifact comments (by this workflow)
+            const artifactComments = comments.filter(c => 
+              c.user?.type === 'Bot' && 
+              c.body?.includes('Build Artifacts Ready')
+            ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            
+            // Delete oldest comments if we have more than 3
+            while (artifactComments.length >= 3) {
+              const oldest = artifactComments.shift();
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: oldest.id
+              });
+              console.log(`Deleted old artifact comment #${oldest.id}`);
+            }
+            
+            // Post new comment
             const artifactUrl = `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
             const comment = `## ✅ Build Artifacts Ready\n\n| Platform | Artifact |\n|----------|----------|\n| Windows | [Download .exe](${artifactUrl}) |\n| Linux | [Download .deb](${artifactUrl}) |\n\n> Click the links above to download the built binaries from this workflow run. Artifacts are retained for 60 days.`;
             
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: parseInt(prNumber),
+              issue_number: prNumber,
               body: comment
             });
 
