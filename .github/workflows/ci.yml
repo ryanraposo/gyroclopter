@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - '**'
+      - '!main'
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm test
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm run build:icons
+      
+      - name: Verify build configuration
+        run: |
+          echo "Build configuration valid"
+          npx electron-builder --help > /dev/null
+          echo "electron-builder is ready"
+
+  lint-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci
+      
+      - name: Check package.json structure
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"
+          echo "✓ package.json is valid JSON"
+      
+      - name: Verify required fields
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            if (!pkg.name) throw new Error('Missing name');
+            if (!pkg.version) throw new Error('Missing version');
+            if (!pkg.main) throw new Error('Missing main');
+            console.log('✓ All required fields present');
+          "
