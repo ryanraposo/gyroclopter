@@ -225,8 +225,11 @@ function updateTrayMenu() {
 }
 
 function createTray() {
-  // Use the pre-sharpened 16x16 PNG icon
-  const iconPath = path.join(__dirname, '..', 'build', 'icons', '16x16.png');
+  // On Windows, use ICO format for best tray icon support
+  // On Linux, use PNG from the icons directory
+  const iconPath = process.platform === 'win32' 
+    ? path.join(__dirname, '..', 'build', 'icon.ico')
+    : path.join(__dirname, '..', 'build', 'icons', '16x16.png');
   const trayIcon = nativeImage.createFromPath(iconPath);
   
   STATE.tray = new Tray(trayIcon);
