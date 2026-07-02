@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
-const { execSync } = require('child_process');
+const pngToIco = require('png-to-ico');
 
 const SOURCE = path.join(__dirname, '..', 'build', 'icon-source.png');
 const ICONS_DIR = path.join(__dirname, '..', 'build', 'icons');
@@ -52,22 +52,15 @@ async function main() {
     console.log(`  wrote ${outputPath} (${stats.size} bytes)`);
   }
 
-  // Generate PNGs for ICO embedding
-  const icoPngPaths = [];
-  for (const size of ICO_SIZES) {
-    const buffer = await resizeIcon(size);
-    const tempPath = path.join(ICONS_DIR, `.ico-${size}.png`);
-    fs.writeFileSync(tempPath, buffer);
-    icoPngPaths.push(tempPath);
-  }
-
-  // Use icotool to create multi-size ICO
-  execSync(`icotool --create -o "${ICO_PATH}" ${icoPngPaths.join(' ')}`);
+  // Generate ICO using png-to-ico (cross-platform, no native dependencies)
+  const icoBuffers = await Promise.all(
+    ICO_SIZES.map(size => resizeIcon(size))
+  );
+  
+  const icoBuffer = await pngToIco(icoBuffers);
+  fs.writeFileSync(ICO_PATH, icoBuffer);
   const icoStats = fs.statSync(ICO_PATH);
   console.log(`  wrote ${ICO_PATH} (${icoStats.size} bytes)`);
-
-  // Cleanup temp files
-  icoPngPaths.forEach(p => fs.unlinkSync(p));
 
   // Copy ICO to favicon
   fs.copyFileSync(ICO_PATH, FAVICON_PATH);
