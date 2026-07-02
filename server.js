@@ -66,6 +66,30 @@ function ensureAppDir() {
 }
 
 /**
+ * Log file stream for tailable output on Linux.
+ */
+let logStream = null;
+function initLogFile() {
+    const logDir = process.env.CERT_DIR || CONFIG.APP_DIR;
+    const logPath = path.join(logDir, 'gyroclopter.log');
+    try {
+        logStream = fs.createWriteStream(logPath, { flags: 'a' });
+        // Also symlink to /tmp for easy access
+        const tmpLog = path.join(os.tmpdir(), 'gyroclopter.log');
+        try { fs.unlinkSync(tmpLog); } catch (_) {}
+        fs.symlinkSync(logPath, tmpLog);
+    } catch (err) {
+        // Log file initialization failed - continue without file logging
+    }
+}
+
+function writeLog(message) {
+    if (logStream) {
+        logStream.write(message + '\n');
+    }
+}
+
+/**
  * Checks whether a buffer/string looks like a PEM-encoded key or certificate.
  */
 function looksLikePem(data) {
@@ -352,7 +376,9 @@ function getLocalIp() {
  * (stdout is fully buffered when piped on Windows).
  */
 function emitStatus(obj) {
-    process.stdout.write(JSON.stringify(obj) + '\n');
+    const line = JSON.stringify(obj) + '\n';
+    process.stdout.write(line);
+    writeLog(line.trim());
 }
 
 /**
@@ -430,6 +456,7 @@ function handleWsMessage(data, mouse) {
  */
 async function main() {
     try {
+        initLogFile();
         ensureAppDir();
         const certificates = await getCertificates();
         const mouse = new GenericMouseController();
@@ -502,12 +529,18 @@ async function main() {
         });
 
         const shutdown = () => {
-            console.log('Shutting down server...');
+            const msg = 'Shutting down server...';
+            console.log(msg);
+            writeLog(msg);
             wss.close(() => {
-                console.log('WebSocket server closed');
+                const msg2 = 'WebSocket server closed';
+                console.log(msg2);
+                writeLog(msg2);
             });
             server.close(() => {
-                console.log('HTTP server closed');
+                const msg3 = 'HTTP server closed';
+                console.log(msg3);
+                writeLog(msg3);
                 mouse.dispose();
                 process.exit(0);
             });
