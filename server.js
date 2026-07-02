@@ -502,8 +502,15 @@ async function main() {
         });
 
         const shutdown = () => {
-            mouse.dispose();
-            process.exit(0);
+            console.log('Shutting down server...');
+            wss.close(() => {
+                console.log('WebSocket server closed');
+            });
+            server.close(() => {
+                console.log('HTTP server closed');
+                mouse.dispose();
+                process.exit(0);
+            });
         };
 
         process.on('SIGINT', shutdown);
@@ -521,7 +528,12 @@ async function main() {
 }
 
 // Only start the server if run directly (not when required as a module)
-if (require.main === module) {
+// Note: when packaged in asar, require.main === module may not work correctly,
+// so we also check if the script path matches
+const isMain = require.main === module || 
+  (process.argv[1] && process.argv[1].includes('server.js'));
+
+if (isMain) {
   main();
 }
 

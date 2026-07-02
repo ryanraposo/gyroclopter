@@ -50,6 +50,7 @@ function createWindow() {
 function getServerPath() {
   const { app } = require('electron');
   if (app.isPackaged) {
+    // Server is inside app.asar, need to reference it properly
     return path.join(process.resourcesPath, 'app.asar', 'server.js');
   }
   return path.join(__dirname, '..', 'server.js');
@@ -60,10 +61,13 @@ async function startServer() {
   
   const serverPath = getServerPath();
   console.log('Starting server:', serverPath);
+  console.log('Is packaged:', require('electron').app.isPackaged);
+  console.log('Resources path:', process.resourcesPath);
+  console.log('Exec path:', process.execPath);
   
   try {
-    // Spawn Node.js to run server.js
-    const serverProcess = spawn('node', [serverPath], {
+    // Use electron's node binary which can read from asar archives
+    const serverProcess = spawn(process.execPath, [serverPath], {
       stdio: ['ignore', 'pipe', 'pipe']
     });
     
@@ -94,6 +98,7 @@ async function startServer() {
     });
     
     serverProcess.on('error', (err) => {
+      console.error('Server process error:', err);
       STATE.running = false;
       STATE.serverProcess = null;
       if (mainWindow) {
@@ -102,8 +107,10 @@ async function startServer() {
     });
 
     serverProcess.stderr.on('data', (data) => {
+      const stderr = data.toString();
+      console.error('Server stderr:', stderr);
       if (mainWindow) {
-        mainWindow.webContents.send('server-event', { event: 'stderr', data: data.toString() });
+        mainWindow.webContents.send('server-event', { event: 'stderr', data: stderr });
       }
     });
     
@@ -134,7 +141,22 @@ async function startServer() {
 
 function stopServer() {
   if (STATE.serverProcess) {
-    STATE.serverProcess.kill();
+    console.log('Stopping server process...');
+    // Send SIGTERM first
+    STATE.serverProcess.kill('SIGTERM');
+    
+    // Force kill after 2 seconds if still running
+    setTimeout(() => {
+      if (STATE.serverProcess && STATE.serverProcess.pid) {
+        try {
+          process.kill(STATE.serverProcess.pid, 'SIGKILL');
+          console.log('Force killed server process');
+        } catch (e) {
+          // Process already dead
+        }
+      }
+    }, 2000);
+    
     STATE.serverProcess = null;
     STATE.serverPid = null;
   }
@@ -201,8 +223,26 @@ ipcMain.on('stop-server', () => {
 });
 
 app.whenReady().then(() => {
+  // Request single instance lock - if we can't get it, quit immediately
+  const gotLock = app.requestSingleInstanceLock();
+  if (!gotLock) {
+    console.log('Another instance is already running. Exiting.');
+    app.quit();
+    return;
+  }
+  
   createTray();
   createWindow();
+});
+
+app.on('second-instance', (event, commandLine, workingDirectory) => {
+  // Another instance tried to start - focus our window instead
+  console.log('Second instance detected, focusing existing window');
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+    mainWindow.show();
+  }
 });
 
 app.on('window-all-closed', (event) => {
