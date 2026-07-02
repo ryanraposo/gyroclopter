@@ -464,6 +464,21 @@ async function main() {
         let connectedCount = 0;
 
         const server = https.createServer(certificates, (req, res) => {
+            // Serve favicon.png for browser tab icon
+            if (req.url === '/favicon.png') {
+                const faviconPath = path.join(__dirname, 'app', 'favicon.png');
+                try {
+                    const faviconData = fs.readFileSync(faviconPath);
+                    res.writeHead(200, { 'Content-Type': 'image/png' });
+                    res.end(faviconData);
+                    return;
+                } catch (err) {
+                    // Fallback: serve empty 204 if favicon not found
+                    res.writeHead(204);
+                    res.end();
+                    return;
+                }
+            }
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(getClientHtml());
         });
