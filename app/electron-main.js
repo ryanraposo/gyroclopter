@@ -65,13 +65,17 @@ async function startServer() {
   console.log('Resources path:', process.resourcesPath);
   
   try {
-    // Spawn server.js using Electron's Node binary (has asar support)
-    // Pass --no-sandbox to avoid Electron sandbox conflicts
+    // Spawn server.js using Electron's Node binary with ELECTRON_RUN_AS_NODE
+    // This enables asar archive support while running as Node.js
+    // Note: --no-sandbox is NOT needed when running as Node.js (only for Electron renderer)
     const serverProcess = spawn(process.execPath, [
-      '--no-sandbox',  // Disable sandbox for server process
       serverPath
     ], {
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1'  // Run as Node.js with asar support
+      }
     });
     
     STATE.serverProcess = serverProcess;
