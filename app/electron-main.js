@@ -225,9 +225,9 @@ function updateTrayMenu() {
 }
 
 function createTray() {
-  // Use the icon from app directory
-  const iconPath = path.join(__dirname, 'favicon.ico');
-  const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  // Use the pre-sharpened 16x16 PNG icon
+  const iconPath = path.join(__dirname, '..', 'build', 'icons', '16x16.png');
+  const trayIcon = nativeImage.createFromPath(iconPath);
   
   STATE.tray = new Tray(trayIcon);
   updateTrayMenu();

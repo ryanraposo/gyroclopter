@@ -1,118 +1,89 @@
-/**
-   * Builds Windows .ico and Linux .png icon assets from build/icon-source.png.
-   *
-   * Outputs:
-   *   build/icon.ico     (multi-size: 16, 32, 48, 64, 128, 256)
-   *   build/icons/<N>x<N.png  (16, 32, 48, 64, 128, 256, 512 — for nfpm/Linux)
-   */
-  const fs = require('fs');
-  const path = require('path');
-  const { PNG } = require('pngjs');
+const fs = require('fs');
+const path = require('path');
+const sharp = require('sharp');
+const { execSync } = require('child_process');
 
-  const ROOT = path.join(__dirname, '..');
-  const SOURCE = path.join(ROOT, 'build', 'icon-source.png');
-  const BUILD = path.join(ROOT, 'build');
-  const ICONS_DIR = path.join(BUILD, 'icons');
+const SOURCE = path.join(__dirname, '..', 'build', 'icon-source.png');
+const ICONS_DIR = path.join(__dirname, '..', 'build', 'icons');
+const ICO_PATH = path.join(__dirname, '..', 'build', 'icon.ico');
+const FAVICON_PATH = path.join(__dirname, '..', 'app', 'favicon.ico');
 
-  const SIZES = [16, 32, 48, 64, 128, 256];
+// Sizes for Linux PNG icons
+const SIZES = [16, 32, 48, 64, 128, 256, 512];
+// Sizes for Windows ICO
+const ICO_SIZES = [16, 32, 48, 64, 128, 256];
 
-  function resizePng(buffer, size) {
-    const src = PNG.sync.read(buffer);
-    const dst = new PNG({ width: size, height: size, colorType: 6 });
-    for (let y = 0; y < size; y++) {
-      const sy = Math.floor((y + 0.5) * src.height / size);
-      for (let x = 0; x < size; x++) {
-        const sx = Math.floor((x + 0.5) * src.width / size);
-        const srcIdx = (sy * src.width + sx) << 2;
-        const dstIdx = (y * size + x) << 2;
-        dst.data[dstIdx] = src.data[srcIdx];
-        dst.data[dstIdx + 1] = src.data[srcIdx + 1];
-        dst.data[dstIdx + 2] = src.data[srcIdx + 2];
-        dst.data[dstIdx + 3] = src.data[srcIdx + 3];
-      }
-    }
-    return PNG.sync.write(dst);
+async function resizeIcon(size) {
+  const sigma = size <= 32 ? 1.5 : size <= 64 ? 1.0 : 0.5;
+  return await sharp(SOURCE)
+    .resize(size, size, {
+      fit: 'fill',
+      kernel: 'lanczos3',
+    })
+    .sharpen({
+      sigma,
+      m1: 1.0,
+      m2: 0.0,
+    })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
+async function main() {
+  if (!fs.existsSync(SOURCE)) {
+    console.error(`Source image not found: ${SOURCE}`);
+    process.exit(1);
   }
 
-  /**
-   * Build a Windows .ico containing PNG-encoded entries (Vista+ format).
-   * Spec: https://en.wikipedia.org/wiki/ICO_(file_format)
-   */
-  function buildIco(pngBuffers) {
-    const count = pngBuffers.length;
-    const headerLen = 6;
-    const dirLen = 16 * count;
-    const header = Buffer.alloc(headerLen);
-    header.writeUInt16LE(0, 0);
-    header.writeUInt16LE(1, 2);
-    header.writeUInt16LE(count, 4);
+  const sourceStats = fs.statSync(SOURCE);
+  console.log(`Source: ${SOURCE} (${sourceStats.size} bytes)`);
 
-    const sizes = pngBuffers.map(buf => {
-      const png = PNG.sync.read(buf);
-      return png.width;
-    });
-
-    let offset = headerLen + dirLen;
-    const dirEntries = pngBuffers.map((buf, i) => {
-      const size = sizes[i];
-      const e = Buffer.alloc(16);
-      e.writeUInt8(size >= 256 ? 0 : size, 0);
-      e.writeUInt8(size >= 256 ? 0 : size, 1);
-      e.writeUInt8(0, 2);
-      e.writeUInt8(0, 3);
-      e.writeUInt16LE(1, 4);
-      e.writeUInt16LE(32, 6);
-      e.writeUInt32LE(buf.length, 8);
-      e.writeUInt32LE(offset, 12);
-      offset += buf.length;
-      return e;
-    });
-
-    return Buffer.concat([header, ...dirEntries, ...pngBuffers]);
-  }
-
-  function main() {
-    if (!fs.existsSync(SOURCE)) {
-      console.error(`Source icon not found: ${SOURCE}`);
-      process.exit(1);
-    }
+  // Create icons directory
+  if (!fs.existsSync(ICONS_DIR)) {
     fs.mkdirSync(ICONS_DIR, { recursive: true });
-
-    const sourceBuf = fs.readFileSync(SOURCE);
-    console.log(`Source: ${SOURCE} (${sourceBuf.length} bytes)`);
-
-    const pngBuffers = [];
-    for (const size of SIZES) {
-      const buf = resizePng(sourceBuf, size);
-      const out = path.join(ICONS_DIR, `${size}x${size}.png`);
-      fs.writeFileSync(out, buf);
-      pngBuffers.push(buf);
-      console.log(`  wrote ${out} (${buf.length} bytes)`);
-    }
-
-    fs.copyFileSync(SOURCE, path.join(ICONS_DIR, '512x512.png'));
-    console.log(`  wrote ${path.join(ICONS_DIR, '512x512.png')}`);
-
-    const ico = buildIco(pngBuffers);
-    const icoPath = path.join(BUILD, 'icon.ico');
-
-    // ------------------------------------------------------------
-    // 1. Write the ICO file to build/icon.ico
-    // ------------------------------------------------------------
-    fs.writeFileSync(icoPath, ico);
-    console.log(`  wrote ${icoPath} (${ico.length} bytes)`);
-
-    // ------------------------------------------------------------
-    // 2. Copy ICO to app/ for Electron tray icon
-    // ------------------------------------------------------------
-    const appFavicon = path.join(ROOT, 'app', 'favicon.ico');
-    try {
-      fs.copyFileSync(icoPath, appFavicon);
-      console.log(`  wrote ${appFavicon} (${ico.length} bytes)`);
-    } catch (_) {
-      // Optionally create app favicon
-    }
-
   }
 
-  main();
+  // Generate PNG icons with Lanczos resampling and sharpening
+  for (const size of SIZES) {
+    const outputPath = path.join(ICONS_DIR, `${size}x${size}.png`);
+    const buffer = await resizeIcon(size);
+    fs.writeFileSync(outputPath, buffer);
+    const stats = fs.statSync(outputPath);
+    console.log(`  wrote ${outputPath} (${stats.size} bytes)`);
+  }
+
+  // Generate PNGs for ICO embedding
+  const icoPngPaths = [];
+  for (const size of ICO_SIZES) {
+    const buffer = await resizeIcon(size);
+    const tempPath = path.join(ICONS_DIR, `.ico-${size}.png`);
+    fs.writeFileSync(tempPath, buffer);
+    icoPngPaths.push(tempPath);
+  }
+
+  // Use icotool to create multi-size ICO
+  execSync(`icotool --create -o "${ICO_PATH}" ${icoPngPaths.join(' ')}`);
+  const icoStats = fs.statSync(ICO_PATH);
+  console.log(`  wrote ${ICO_PATH} (${icoStats.size} bytes)`);
+
+  // Cleanup temp files
+  icoPngPaths.forEach(p => fs.unlinkSync(p));
+
+  // Copy ICO to favicon
+  fs.copyFileSync(ICO_PATH, FAVICON_PATH);
+  console.log(`  wrote ${FAVICON_PATH} (${icoStats.size} bytes)`);
+
+  // Generate optimized favicon PNG (32x32 is standard for browsers)
+  const faviconPngPath = path.join(__dirname, '..', 'app', 'favicon.png');
+  const faviconBuffer = await resizeIcon(32);
+  fs.writeFileSync(faviconPngPath, faviconBuffer);
+  const pngStats = fs.statSync(faviconPngPath);
+  console.log(`  wrote ${faviconPngPath} (${pngStats.size} bytes)`);
+  
+  console.log('\nIcon generation complete!');
+}
+
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
