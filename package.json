@@ -30,7 +30,7 @@
   "devDependencies": {
     "@playwright/test": "^1.52.0",
     "electron": "^43.0.0",
-    "electron-builder": "^24.13.3",
+    "electron-builder": "^26.15.6",
     "jest": "^29.7.0",
     "png-to-ico": "^3.0.1",
     "pngjs": "^7.0.0",
@@ -59,14 +59,6 @@
     "extraResources": [],
     "directories": {
       "buildResources": "build"
-    },
-    "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico",
-      "publisherName": "Ryan Raposo",
-      "signingHashAlgorithms": [
-        "sha256"
-      ]
     },
     "nsis": {
       "oneClick": false,

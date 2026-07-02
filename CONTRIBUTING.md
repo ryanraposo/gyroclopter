@@ -56,11 +56,11 @@ Once merged, the CI pipeline automatically:
 
 * Runs the Jest test suite on every push and PR
 * Reads version from package.json
-* Builds the Windows NSIS installer (`dist/gyroclopter-setup-<version>.exe`) on Windows runners
+* Builds the Windows NSIS installer (`dist/gyroclopter-<version>.exe`) on Windows runners
 * Builds the Linux `.deb` package (`dist/gyroclopter_<version>_amd64.deb`) on Ubuntu runners
-* Smoke-tests each artifact on the runner that built it (boots the binary, confirms port 8443 is listening, kills it)
-* **On push to `main`**: uploads both artifacts to a single draft release tagged `latest` so you can verify the binaries match what your users will download
-* **On push to a `v*` tag**: publishes a real release
+* Smoke-tests each artifact on the runner that built it
+* **On PR to `main`**: posts a comment with download links to the artifacts (retained for 60 days)
+* **On push to a `v*` tag**: creates a GitHub Release with changelog and attached artifacts
 
 The two build jobs are independent and run in parallel after `test` passes.
 
@@ -84,17 +84,24 @@ If it lands on main, it ships.
 
 📦 Releasing
 
-Tag a release once the `latest` draft looks good:
+1. **Prepare the release** on `dev`:
+   - Bump `version` in `package.json`
+   - Add entries to `CHANGELOG.md`
+   - Merge to `main` and verify the PR build artifacts work
 
+2. **Tag and push** once you're satisfied:
 ```bash
 git checkout main
 git pull
-# Bump version in package.json + add CHANGELOG entry.
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
-The push triggers a real release job (not draft). Delete or update the `latest` draft after publishing.
+3. **GitHub Release** is created automatically with:
+   - Changelog from `CHANGELOG.md`
+   - Windows `.exe` and Linux `.deb` attached
+
+The PR artifacts are retained for 60 days for testing; the GitHub Release is the official distribution.
 
 ⸻
 
