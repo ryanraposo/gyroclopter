@@ -60,6 +60,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+      - name: Install icotool for ICO generation
+        run: sudo apt-get update && sudo apt-get install -y icoutils
       - run: npm ci
       - run: npm run build:icons
       - run: npm run build:linux
