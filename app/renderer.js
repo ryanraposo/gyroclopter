@@ -2,7 +2,8 @@
 const STATE = {
   serverPid: null,
   running: false,
-  connectedCount: 0
+  connectedCount: 0,
+  togglePending: false
 };
 
 const els = {
@@ -17,6 +18,7 @@ const els = {
 
 function setStatus(running) {
   STATE.running = running;
+  STATE.togglePending = false;
   els.statusDot.className = 'status-dot ' + (running ? 'running' : 'stopped');
   els.statusText.textContent = running ? 'Running' : 'Stopped';
   els.btnToggle.textContent = running ? 'Stop Server' : 'Start Server';
@@ -52,9 +54,15 @@ function stopServer() {
 }
 
 els.btnToggle.onclick = () => {
+  if (STATE.togglePending) {
+    console.log('Toggle pending, ignoring click');
+    return;
+  }
   if (STATE.running) {
+    STATE.togglePending = true;
     stopServer();
   } else {
+    STATE.togglePending = true;
     startServer();
   }
 };

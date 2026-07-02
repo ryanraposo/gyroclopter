@@ -9,7 +9,9 @@ const STATE = {
   serverPid: null,
   running: false,
   connectedCount: 0,
-  tray: null
+  tray: null,
+  stopping: false,
+  starting: false
 };
 
 let mainWindow;
@@ -57,8 +59,12 @@ function getServerPath() {
 }
 
 async function startServer() {
-  if (STATE.running) return;
+  if (STATE.running || STATE.starting || STATE.stopping) {
+    console.log('Skipping start - server is running:', STATE.running, ', starting:', STATE.starting, ', stopping:', STATE.stopping);
+    return;
+  }
   
+  STATE.starting = true;
   const serverPath = getServerPath();
   console.log('Starting server:', serverPath);
   console.log('Is packaged:', require('electron').app.isPackaged);
@@ -92,6 +98,7 @@ async function startServer() {
           switch (msg.event) {
             case 'started':
               STATE.running = true;
+              STATE.starting = false;
               break;
             case 'connection':
             case 'disconnection':
@@ -107,6 +114,7 @@ async function startServer() {
     serverProcess.on('error', (err) => {
       console.error('Server process error:', err);
       STATE.running = false;
+      STATE.starting = false;
       STATE.serverProcess = null;
       if (mainWindow) {
         mainWindow.webContents.send('server-event', { event: 'error', message: err.message });
@@ -122,7 +130,10 @@ async function startServer() {
     });
     
     serverProcess.on('exit', (code) => {
+      console.log('Server process exited with code:', code);
       STATE.running = false;
+      STATE.stopping = false;
+      STATE.starting = false;
       STATE.serverProcess = null;
       STATE.serverPid = null;
       if (mainWindow) {
@@ -135,20 +146,26 @@ async function startServer() {
     updateTrayMenu();
   } catch (err) {
     console.error('Failed to start server', err);
+    STATE.starting = false;
+    STATE.running = false;
     if (mainWindow) {
       mainWindow.webContents.send('server-event', { 
         event: 'error', 
         message: err.message 
       });
     }
-    STATE.running = false;
     updateTrayMenu();
   }
 }
 
 function stopServer() {
+  if (STATE.stopping) {
+    console.log('Stop already in progress, ignoring');
+    return;
+  }
   if (STATE.serverProcess) {
-    console.log('Stopping server process...');
+    console.log('Stopping server process (PID:', STATE.serverProcess.pid, ')...');
+    STATE.stopping = true;
     STATE.serverProcess.kill('SIGTERM');
     
     // Force kill after 2 seconds if still running
@@ -162,11 +179,13 @@ function stopServer() {
         }
       }
     }, 2000);
-    
-    STATE.serverProcess = null;
-    STATE.serverPid = null;
+    // Don't set STATE.serverProcess to null here - let the exit handler do it
+  } else {
+    console.log('No server process to stop');
+    STATE.stopping = false;
   }
-  STATE.running = false;
+  // Don't set STATE.running = false here - let the exit handler do it
+  // This ensures UI stays in "running" state until process actually exits
   updateTrayMenu();
 }
 
