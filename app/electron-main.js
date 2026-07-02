@@ -50,8 +50,8 @@ function createWindow() {
 function getServerPath() {
   const { app } = require('electron');
   if (app.isPackaged) {
-    // Server is inside app.asar, need to reference it properly
-    return path.join(process.resourcesPath, 'app.asar', 'server.js');
+    // Server is extracted to extraResources, not in asar
+    return path.join(process.resourcesPath, 'server.js');
   }
   return path.join(__dirname, '..', 'server.js');
 }
