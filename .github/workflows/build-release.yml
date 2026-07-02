@@ -112,7 +112,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
-              body: `## ✅ Build Artifacts Ready\n\n| Platform | Artifact |\n|----------|----------|\n| Windows | [Download .exe](${artifactUrl}) |\n| Linux | [Download .deb](${artifactUrl}) |\n\n> Artifacts retained for 60 days.`
+              body: `## ✅ Build Artifacts Ready\n\n| Platform | Artifact |\n|----------|----------|\n| Windows | [Download .exe](${artifactUrl}) |\n| Linux | [Download .deb](${artifactUrl}) |\n\n> Artifacts retained for 90 days.`
             });
 
   release:
