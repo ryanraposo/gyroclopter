@@ -54,12 +54,7 @@
       "server.js",
       "client.html"
     ],
-    "extraResources": [
-      {
-        "from": "server.js",
-        "to": "server.js"
-      }
-    ],
+    "extraResources": [],
     "directories": {
       "buildResources": "build"
     },

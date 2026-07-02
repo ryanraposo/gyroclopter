@@ -1,6 +1,7 @@
 // app/main.js - Electron main process
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, utilityProcess } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
+const { spawn } = require('child_process');
 const os = require('os');
 const { networkInterfaces } = require('os');
 
@@ -49,8 +50,8 @@ function createWindow() {
 function getServerPath() {
   const { app } = require('electron');
   if (app.isPackaged) {
-    // Server is extracted to extraResources, not in asar
-    return path.join(process.resourcesPath, 'server.js');
+    // Server is inside app.asar
+    return path.join(process.resourcesPath, 'app.asar', 'server.js');
   }
   return path.join(__dirname, '..', 'server.js');
 }
@@ -64,14 +65,10 @@ async function startServer() {
   console.log('Resources path:', process.resourcesPath);
   
   try {
-    // Use utilityProcess.fork for better Electron integration
-    // This handles asar archives automatically and has better lifecycle management
-    const serverProcess = utilityProcess.fork(serverPath, [], {
-      stdio: 'pipe',
-      env: {
-        ...process.env,
-        ELECTRON_RUN_AS_NODE: '1'
-      }
+    // Spawn server.js using system Node.js
+    // This avoids Electron sandbox issues since server runs as separate Node process
+    const serverProcess = spawn('node', [serverPath], {
+      stdio: ['ignore', 'pipe', 'pipe']
     });
     
     STATE.serverProcess = serverProcess;
@@ -145,10 +142,20 @@ async function startServer() {
 function stopServer() {
   if (STATE.serverProcess) {
     console.log('Stopping server process...');
-    // utilityProcess has a kill() method that sends SIGTERM
-    STATE.serverProcess.kill();
+    STATE.serverProcess.kill('SIGTERM');
     
-    // Clear references immediately
+    // Force kill after 2 seconds if still running
+    setTimeout(() => {
+      if (STATE.serverProcess && STATE.serverProcess.pid) {
+        try {
+          process.kill(STATE.serverProcess.pid, 'SIGKILL');
+          console.log('Force killed server process');
+        } catch (e) {
+          // Process already dead
+        }
+      }
+    }, 2000);
+    
     STATE.serverProcess = null;
     STATE.serverPid = null;
   }
