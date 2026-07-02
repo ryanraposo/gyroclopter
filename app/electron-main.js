@@ -65,9 +65,12 @@ async function startServer() {
   console.log('Resources path:', process.resourcesPath);
   
   try {
-    // Spawn server.js using system Node.js
-    // This avoids Electron sandbox issues since server runs as separate Node process
-    const serverProcess = spawn('node', [serverPath], {
+    // Spawn server.js using Electron's Node binary (has asar support)
+    // Pass --no-sandbox to avoid Electron sandbox conflicts
+    const serverProcess = spawn(process.execPath, [
+      '--no-sandbox',  // Disable sandbox for server process
+      serverPath
+    ], {
       stdio: ['ignore', 'pipe', 'pipe']
     });
     
