@@ -1,4 +1,4 @@
-name: build-release
+name: build-artifacts
 
 on:
   pull_request:
@@ -94,14 +94,14 @@ jobs:
             
             const artifactComments = comments.filter(c => 
               c.user?.type === 'Bot' && c.body?.includes('Build Artifacts Ready')
-            ).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            );
             
-            while (artifactComments.length >= 3) {
-              const oldest = artifactComments.shift();
+            // Delete all previous artifact comments
+            for (const comment of artifactComments) {
               await github.rest.issues.deleteComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                comment_id: oldest.id
+                comment_id: comment.id
               });
             }
             
