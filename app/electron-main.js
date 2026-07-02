@@ -19,7 +19,7 @@ function createWindow() {
     title: 'Gyroclopter',
     icon: path.join(__dirname, 'favicon.ico'),
     width: 420,
-    height: 680,
+    height: 700,
     resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
