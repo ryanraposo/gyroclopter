@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
-const pngToIco = require('png-to-ico');
+const pngToIcoLib = require('png-to-ico');
+const pngToIco = pngToIcoLib.default || pngToIcoLib.imagesToIco || pngToIcoLib;
 
 const SOURCE = path.join(__dirname, '..', 'build', 'icon-source.png');
 const ICONS_DIR = path.join(__dirname, '..', 'build', 'icons');
