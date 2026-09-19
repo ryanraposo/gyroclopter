@@ -76,6 +76,11 @@ window.electronAPI?.onServerEvent?.((msg) => {
       showQR(url, msg.qr || '');
       setStatus(true);
       break;
+    case 'address': {
+      const url = 'https://' + msg.ip + ':' + msg.port;
+      showQR(url, msg.qr || '');
+      break;
+    }
     case 'connection':
     case 'disconnection':
       setConnectedCount(msg.count);

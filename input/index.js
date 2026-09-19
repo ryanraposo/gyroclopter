@@ -1,3 +1,4 @@
+const fs = require('fs');
 const os = require('os');
 const WindowsInputController = require('./windows');
 const LinuxInputController = require('./linux');
@@ -13,6 +14,22 @@ const BACKEND_ALIASES = {
   unsupported: 'unsupported'
 };
 
+function isCrostini(options = {}) {
+  const platform = options.platform || os.platform();
+  const env = options.env || process.env;
+  const existsSync = options.existsSync || fs.existsSync;
+
+  if (platform !== 'linux') return false;
+  if (env.GYROCLOPTER_CHROMEOS === '1') return true;
+  if (env.CROS_USER_ID_HASH) return true;
+
+  try {
+    return existsSync('/mnt/chromeos');
+  } catch (_) {
+    return false;
+  }
+}
+
 function resolveInputBackend(options = {}) {
   const platform = options.platform || os.platform();
   const env = options.env || process.env;
@@ -20,14 +37,12 @@ function resolveInputBackend(options = {}) {
 
   if (requested) {
     const backend = BACKEND_ALIASES[String(requested).toLowerCase()];
-    if (!backend) {
-      throw new Error(`Unknown GYROCLOPTER_INPUT_BACKEND: ${requested}`);
-    }
+    if (!backend) throw new Error(`Unknown GYROCLOPTER_INPUT_BACKEND: ${requested}`);
     return backend;
   }
 
   if (platform === 'win32') return 'windows';
-  if (platform === 'linux') return 'linux';
+  if (platform === 'linux') return isCrostini(options) ? 'chromeos' : 'linux';
   return 'unsupported';
 }
 
@@ -43,7 +58,4 @@ function createInputController(options = {}) {
   return new UnsupportedInputController(options.platform || os.platform());
 }
 
-module.exports = {
-  createInputController,
-  resolveInputBackend
-};
+module.exports = { createInputController, resolveInputBackend, isCrostini };

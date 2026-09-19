@@ -204,6 +204,42 @@ async function main() {
         const mouse = createInputController();
 
         let connectedCount = 0;
+        let serverStarted = false;
+        let publicIp = process.env.GYROCLOPTER_PUBLIC_HOST || getLocalIp();
+
+        async function makePairingQr(ip) {
+            const url = `https://${ip}:${CONFIG.PORT}`;
+            try {
+                return await QRCode.toDataURL(url, {
+                    errorCorrectionLevel: 'M',
+                    margin: 1,
+                    width: 400
+                });
+            } catch (_) {
+                return '';
+            }
+        }
+
+        async function emitPairingAddress(eventName = 'address') {
+            const qr = await makePairingQr(publicIp);
+            emitStatus({ event: eventName, ip: publicIp, port: CONFIG.PORT, qr });
+        }
+
+        if (typeof mouse.on === 'function') {
+            mouse.on('host-address', async (ip) => {
+                if (process.env.GYROCLOPTER_PUBLIC_HOST || !ip || ip === publicIp) return;
+                publicIp = ip;
+                if (serverStarted) await emitPairingAddress('address');
+            });
+
+            mouse.on('availability', (available) => {
+                emitStatus({
+                    event: 'input_availability',
+                    inputBackend: mouse.name || 'unknown',
+                    inputAvailable: Boolean(available)
+                });
+            });
+        }
 
         const server = https.createServer(certificates, (req, res) => {
             if (req.url === '/click-stability.js') {
@@ -281,24 +317,14 @@ async function main() {
             });
         });
 
-        const localIp = process.env.GYROCLOPTER_PUBLIC_HOST || getLocalIp();
-        const url = `https://${localIp}:${CONFIG.PORT}`;
-
         server.listen(CONFIG.PORT, '0.0.0.0', async () => {
-            let qr = '';
-            try {
-                qr = await QRCode.toDataURL(url, {
-                    errorCorrectionLevel: 'M',
-                    margin: 1,
-                    width: 400
-                });
-            } catch (_) { /* QR generation failed silently */ }
-
+            serverStarted = true;
+            const qr = await makePairingQr(publicIp);
             emitStatus({
                 event: 'started',
-                ip: localIp,
+                ip: publicIp,
                 port: CONFIG.PORT,
-                qr: qr,
+                qr,
                 inputBackend: mouse.name || 'unknown',
                 inputAvailable: mouse.available !== false
             });

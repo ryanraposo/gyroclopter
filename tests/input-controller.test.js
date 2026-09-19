@@ -33,8 +33,28 @@ describe('input backend architecture', () => {
 
   test('resolves native platform backends explicitly', () => {
     expect(resolveInputBackend({ platform: 'win32', env: {} })).toBe('windows');
-    expect(resolveInputBackend({ platform: 'linux', env: {} })).toBe('linux');
+    expect(resolveInputBackend({ platform: 'linux', env: {}, existsSync: () => false })).toBe('linux');
     expect(resolveInputBackend({ platform: 'darwin', env: {} })).toBe('unsupported');
+  });
+
+  test('detects Crostini without treating all Linux systems as ChromeOS', () => {
+    expect(resolveInputBackend({
+      platform: 'linux',
+      env: {},
+      existsSync: (path) => path === '/mnt/chromeos'
+    })).toBe('chromeos');
+
+    expect(resolveInputBackend({
+      platform: 'linux',
+      env: { CROS_USER_ID_HASH: 'abc123' },
+      existsSync: () => false
+    })).toBe('chromeos');
+
+    expect(resolveInputBackend({
+      platform: 'linux',
+      env: { GYROCLOPTER_INPUT_BACKEND: 'linux' },
+      existsSync: () => true
+    })).toBe('linux');
   });
 
   test('allows an explicit backend override', () => {

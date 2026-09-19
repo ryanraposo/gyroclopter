@@ -5,6 +5,7 @@ const HOVER_INTERVAL_MS = 40;
 
 let socket = null;
 let desktopRoot = null;
+let automationReady = false;
 let reconnectTimer = null;
 let keepAliveTimer = null;
 let hoverTimer = null;
@@ -13,9 +14,7 @@ let lastHoveredNode = null;
 let cursor = { x: 0, y: 0 };
 
 function setBadge(text) {
-  try {
-    chrome.action.setBadgeText({ text });
-  } catch (_) {}
+  try { chrome.action.setBadgeText({ text }); } catch (_) {}
 }
 
 function desktopBounds() {
@@ -35,19 +34,27 @@ function resetCursor() {
   cursor.y = bounds.top + Math.floor(bounds.height / 2);
 }
 
-function ensureDesktop(callback) {
+function ensureDesktop(callback = () => {}) {
   if (desktopRoot) {
     callback(desktopRoot);
+    return;
+  }
+  if (!chrome.automation || typeof chrome.automation.getDesktop !== 'function') {
+    automationReady = false;
+    callback(null);
     return;
   }
 
   chrome.automation.getDesktop((root) => {
     if (chrome.runtime.lastError || !root) {
+      automationReady = false;
       console.error('Gyroclopter: unable to access ChromeOS desktop Automation tree',
         chrome.runtime.lastError && chrome.runtime.lastError.message);
+      callback(null);
       return;
     }
     desktopRoot = root;
+    automationReady = true;
     resetCursor();
     callback(root);
   });
@@ -55,10 +62,9 @@ function ensureDesktop(callback) {
 
 function hitTest(callback) {
   ensureDesktop((root) => {
+    if (!root) return callback(null);
     try {
-      root.hitTestWithReply(Math.round(cursor.x), Math.round(cursor.y), (node) => {
-        callback(node || null);
-      });
+      root.hitTestWithReply(Math.round(cursor.x), Math.round(cursor.y), (node) => callback(node || null));
     } catch (err) {
       console.error('Gyroclopter hit-test failed', err);
       callback(null);
@@ -69,9 +75,7 @@ function hitTest(callback) {
 function focusNode(node) {
   if (!node || node === lastHoveredNode) return;
   lastHoveredNode = node;
-  try {
-    node.focus();
-  } catch (_) {}
+  try { node.focus(); } catch (_) {}
 }
 
 function scheduleHover() {
@@ -94,9 +98,7 @@ function findScrollable(node) {
     if (current.scrollable ||
         (Number.isFinite(current.scrollYMin) &&
          Number.isFinite(current.scrollYMax) &&
-         current.scrollYMax > current.scrollYMin)) {
-      return current;
-    }
+         current.scrollYMax > current.scrollYMin)) return current;
     current = current.parent;
   }
   return null;
@@ -107,11 +109,7 @@ function activateAtCursor() {
     const target = node || pressedNode;
     pressedNode = null;
     if (!target) return;
-    try {
-      target.doDefault();
-    } catch (err) {
-      console.warn('Gyroclopter default action failed', err);
-    }
+    try { target.doDefault(); } catch (err) { console.warn('Gyroclopter default action failed', err); }
   });
 }
 
@@ -142,32 +140,18 @@ function handleCommand(command) {
     scheduleHover();
     return;
   }
-
   if (type === 'LEFT_DOWN') {
-    hitTest((node) => {
-      pressedNode = node;
-      focusNode(node);
-    });
+    hitTest((node) => { pressedNode = node; focusNode(node); });
     return;
   }
-
-  if (type === 'LEFT_UP') {
-    activateAtCursor();
-    return;
-  }
-
+  if (type === 'LEFT_UP') return activateAtCursor();
   if (type === 'CLICK_RIGHT') {
     hitTest((node) => {
       if (!node) return;
-      try {
-        node.showContextMenu();
-      } catch (err) {
-        console.warn('Gyroclopter context menu action failed', err);
-      }
+      try { node.showContextMenu(); } catch (err) { console.warn('Gyroclopter context menu action failed', err); }
     });
     return;
   }
-
   if (type === 'SCROLL') {
     const delta = Number(parts[1]);
     if (Number.isFinite(delta) && delta !== 0) scrollAtCursor(delta);
@@ -182,9 +166,7 @@ function stopKeepAlive() {
 function startKeepAlive() {
   stopKeepAlive();
   keepAliveTimer = setInterval(() => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'ping' }));
-    }
+    if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'ping' }));
   }, KEEPALIVE_MS);
 }
 
@@ -196,24 +178,21 @@ function scheduleReconnect() {
   }, RECONNECT_MS);
 }
 
-function sendReady() {
+async function sendReady() {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
-  ensureDesktop(() => {
-    socket.send(JSON.stringify({
-      type: 'hello',
-      client: 'gyroclopter-chromeos',
-      protocol: 1,
-      bounds: desktopBounds()
-    }));
-  });
+  const stored = await chrome.storage.local.get(['hostIp']);
+  socket.send(JSON.stringify({
+    type: 'hello',
+    client: 'gyroclopter-chromeos',
+    protocol: 1,
+    bounds: desktopBounds(),
+    automationReady,
+    hostIp: stored.hostIp || null
+  }));
 }
 
 function connect() {
-  if (socket &&
-      (socket.readyState === WebSocket.OPEN ||
-       socket.readyState === WebSocket.CONNECTING)) {
-    return;
-  }
+  if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
 
   try {
     socket = new WebSocket(BRIDGE_URL);
@@ -226,28 +205,17 @@ function connect() {
   socket.onopen = () => {
     setBadge('ON');
     startKeepAlive();
-    sendReady();
+    ensureDesktop(() => sendReady());
   };
 
   socket.onmessage = (event) => {
     let message;
-    try {
-      message = JSON.parse(event.data);
-    } catch (_) {
-      return;
-    }
-
-    if (message.type === 'input') {
-      handleCommand(message.command);
-    } else if (message.type === 'hello') {
-      sendReady();
-    }
+    try { message = JSON.parse(event.data); } catch (_) { return; }
+    if (message.type === 'input') handleCommand(message.command);
+    else if (message.type === 'hello') ensureDesktop(() => sendReady());
   };
 
-  socket.onerror = () => {
-    try { socket.close(); } catch (_) {}
-  };
-
+  socket.onerror = () => { try { socket.close(); } catch (_) {} };
   socket.onclose = () => {
     socket = null;
     setBadge('OFF');
@@ -256,12 +224,29 @@ function connect() {
   };
 }
 
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!message || typeof message.type !== 'string') return false;
+  if (message.type === 'status') {
+    sendResponse({
+      connected: Boolean(socket && socket.readyState === WebSocket.OPEN),
+      automationReady
+    });
+    return false;
+  }
+  if (message.type === 'host-ip-updated') {
+    sendReady().finally(() => sendResponse({ ok: true }));
+    return true;
+  }
+  return false;
+});
+
+chrome.action.onClicked.addListener(() => chrome.tabs.create({ url: chrome.runtime.getURL('setup.html') }));
 chrome.runtime.onInstalled.addListener(() => {
-  ensureDesktop(() => connect());
+  chrome.tabs.create({ url: chrome.runtime.getURL('setup.html') });
+  connect();
+  ensureDesktop();
 });
+chrome.runtime.onStartup.addListener(() => { connect(); ensureDesktop(); });
 
-chrome.runtime.onStartup.addListener(() => {
-  ensureDesktop(() => connect());
-});
-
-ensureDesktop(() => connect());
+connect();
+ensureDesktop();

@@ -59,6 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       artifact_url: ${{ steps.upload-linux.outputs.artifactci-run-url }}
+      chromeos_artifact_url: ${{ steps.upload-chromeos-kit.outputs.artifactci-run-url }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -81,44 +82,36 @@ jobs:
           if-no-files-found: error
           artifactci-visibility: public
 
-  build-chromeos-extension:
-    needs: test
-    runs-on: ubuntu-latest
-    outputs:
-      artifact_url: ${{ steps.upload-chromeos.outputs.artifactci-run-url }}
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
       - name: Validate ChromeOS extension
         run: |
-          node -e "JSON.parse(require('fs').readFileSync('chromeos/extension/manifest.json', 'utf8')); console.log('✓ manifest.json is valid')"
+          node -e "JSON.parse(require('fs').readFileSync('chromeos/extension/manifest.json', 'utf8'))"
           node --check chromeos/extension/service-worker.js
-          test -f chromeos/extension/manifest.json
-          test -f chromeos/extension/service-worker.js
+          node --check chromeos/extension/setup.js
 
-      - name: Package ChromeOS extension
+      - name: Package ChromeOS test kit
         run: |
-          mkdir -p dist/chromeos-extension
-          cp -R chromeos/extension/. dist/chromeos-extension/
-          cd dist/chromeos-extension
-          zip -r ../gyroclopter-chromeos-extension.zip .
+          set -e
+          rm -rf dist/chromeos-test-kit
+          mkdir -p dist/chromeos-test-kit/extension
+          DEB=$(ls dist/*.deb | head -1)
+          cp "$DEB" dist/chromeos-test-kit/gyroclopter.deb
+          cp -R chromeos/extension/. dist/chromeos-test-kit/extension/
+          cp chromeos/README-FIRST.txt dist/chromeos-test-kit/README-FIRST.txt
+          cd dist/chromeos-test-kit
+          zip -r ../gyroclopter-chromeos-test-kit.zip .
           cd ../..
-          unzip -t dist/gyroclopter-chromeos-extension.zip
+          unzip -t dist/gyroclopter-chromeos-test-kit.zip
 
-      - id: upload-chromeos
+      - id: upload-chromeos-kit
         uses: mmkal/artifact.ci/upload@main
         with:
-          name: chromeos-extension
-          path: dist/gyroclopter-chromeos-extension.zip
+          name: chromeos-test-kit
+          path: dist/gyroclopter-chromeos-test-kit.zip
           if-no-files-found: error
           artifactci-visibility: public
 
   post-artifacts:
-    needs: [build-windows, build-linux, build-chromeos-extension]
+    needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
@@ -149,13 +142,13 @@ jobs:
           
             const winUrl = '${{ needs.build-windows.outputs.artifact_url }}';
             const linuxUrl = '${{ needs.build-linux.outputs.artifact_url }}';
-            const chromeosUrl = '${{ needs.build-chromeos-extension.outputs.artifact_url }}';
+            const chromeosUrl = '${{ needs.build-linux.outputs.chromeos_artifact_url }}';
           
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
-              body: `## ✅ Build Artifacts Ready\n\n| Platform | Download |\n|----------|----------|\n| Windows | [\${{ github.event.repository.name }}.exe](${winUrl}) |\n| Linux | [\${{ github.event.repository.name }}.deb](${linuxUrl}) |\n| ChromeOS Extension | [gyroclopter-chromeos-extension.zip](${chromeosUrl}) |\n\n> Direct links via artifact.ci (90-day retention).`
+              body: `## ✅ Build Artifacts Ready\n\n| Platform | Download |\n|----------|----------|\n| Windows | [\${{ github.event.repository.name }}.exe](${winUrl}) |\n| Linux | [\${{ github.event.repository.name }}.deb](${linuxUrl}) |\n| ChromeOS Test Kit | [gyroclopter-chromeos-test-kit.zip](${chromeosUrl}) |\n\n> Direct links via artifact.ci (90-day retention).`
             });
 
   release:
