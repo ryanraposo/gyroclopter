@@ -35,19 +35,25 @@ surface actually feels on real ChromeOS hardware.
 
 ChromeOS Settings → Developers → Linux development environment → Set up.
 
-### 2. Get the ChromeOS build
+### 2. Download the CI artifacts
 
-PR CI publishes a ready-to-download `gyroclopter-chromeos-extension.zip` artifact alongside the Windows and Linux builds.
+PR CI publishes everything needed for the Chromebook test:
 
-Download and unzip that artifact somewhere visible to ChromeOS, such as Downloads.
+- `gyroclopter-0.5.0.deb` — the Linux/Crostini host
+- `gyroclopter-chromeos-extension.zip` — the ChromeOS bridge extension
 
-The Linux host still runs from the current branch for this hardware spike:
+Download both from the PR's **Build Artifacts Ready** card.
+
+Unzip the extension into Downloads (or another folder visible to ChromeOS).
+
+Install the host from the Linux Terminal:
 
 ```bash
-git clone -b feature/chromeos-support https://github.com/ryanraposo/gyroclopter.git
-cd gyroclopter
-npm ci
+sudo apt install ./gyroclopter-0.5.0.deb
 ```
+
+If the file is in ChromeOS Downloads rather than the Linux home directory, copy
+it into **Linux files** first from the Files app, then run the command above.
 
 ### 3. Expose the phone-facing port
 
@@ -70,7 +76,7 @@ Use that address below, for example `192.168.1.42`.
 ### 5. Start Gyroclopter in ChromeOS mode
 
 ```bash
-GYROCLOPTER_PUBLIC_HOST=192.168.1.42 npm run start:chromeos
+GYROCLOPTER_INPUT_BACKEND=chromeos GYROCLOPTER_PUBLIC_HOST=192.168.1.42 gyroclopter
 ```
 
 The public-host override matters because the Linux container has its own private
@@ -85,7 +91,7 @@ Open `chrome://extensions`.
 2. Choose **Load unpacked**.
 3. Select the unzipped CI artifact folder containing `manifest.json` and `service-worker.js`.
 
-You can still load `gyroclopter/chromeos/extension` from Linux files when developing locally.
+For development only, the same extension source lives at `chromeos/extension` in the repository.
 
 The extension badge should show **ON** once it reaches Gyroclopter at
 `ws://localhost:8444`.
