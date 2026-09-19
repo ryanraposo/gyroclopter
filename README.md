@@ -195,6 +195,7 @@ Window minimizes to tray; quit from tray to stop server.
 | Tap **RIGHT**      | Right-click                                |
 | Swipe **SCROLL**   | Scroll up/down                             |
 | Sensitivity slider | Adjust speed (1–25)                        |
+| Click Stability    | Suppress tiny motion while clicking; deliberate movement still becomes a drag |
 
 ---
 

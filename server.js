@@ -206,6 +206,23 @@ async function main() {
         let connectedCount = 0;
 
         const server = https.createServer(certificates, (req, res) => {
+            if (req.url === '/click-stability.js') {
+                const scriptPath = path.join(__dirname, 'app', 'click-stability.js');
+                try {
+                    const script = fs.readFileSync(scriptPath);
+                    res.writeHead(200, {
+                        'Content-Type': 'application/javascript; charset=utf-8',
+                        'Cache-Control': 'no-cache'
+                    });
+                    res.end(script);
+                    return;
+                } catch (_) {
+                    res.writeHead(404);
+                    res.end();
+                    return;
+                }
+            }
+
             // Serve favicon.png for browser tab icon
             if (req.url === '/favicon.png') {
                 const faviconPath = path.join(__dirname, 'app', 'favicon.png');
