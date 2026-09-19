@@ -264,7 +264,7 @@ async function main() {
             });
         });
 
-        const localIp = getLocalIp();
+        const localIp = process.env.GYROCLOPTER_PUBLIC_HOST || getLocalIp();
         const url = `https://${localIp}:${CONFIG.PORT}`;
 
         server.listen(CONFIG.PORT, '0.0.0.0', async () => {

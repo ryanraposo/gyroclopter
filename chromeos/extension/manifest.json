@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Gyroclopter ChromeOS Bridge",
+  "version": "0.1.0",
+  "description": "Host-side ChromeOS Automation bridge for Gyroclopter.",
+  "minimum_chrome_version": "116",
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Gyroclopter ChromeOS Bridge"
+  },
+  "automation": {
+    "desktop": true
+  }
+}

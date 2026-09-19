@@ -7,6 +7,8 @@ const BACKEND_ALIASES = {
   win32: 'windows',
   windows: 'windows',
   linux: 'linux',
+  chromeos: 'chromeos',
+  cros: 'chromeos',
   none: 'unsupported',
   unsupported: 'unsupported'
 };
@@ -34,6 +36,10 @@ function createInputController(options = {}) {
 
   if (backend === 'windows') return new WindowsInputController(options);
   if (backend === 'linux') return new LinuxInputController(options);
+  if (backend === 'chromeos') {
+    const ChromeOSInputController = require('./chromeos');
+    return new ChromeOSInputController(options);
+  }
   return new UnsupportedInputController(options.platform || os.platform());
 }
 

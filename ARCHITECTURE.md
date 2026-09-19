@@ -26,6 +26,7 @@ input/commands.js
 input backend
       ├── windows.js
       ├── linux.js
+      ├── chromeos.js
       └── unsupported.js
 ```
 
@@ -68,3 +69,30 @@ protocol or duplicating the server.
 
 The rule is simple: platform-specific privilege belongs behind the input
 controller boundary.
+
+## ChromeOS bridge
+
+ChromeOS keeps Crostini isolated from the host input stack, so the ChromeOS
+backend is a bridge rather than a Linux mouse injector.
+
+`input/chromeos.js` listens only on `127.0.0.1:8444`. ChromeOS automatically
+tunnels Linux localhost ports into the host browser. The unpacked MV3 extension
+in `chromeos/extension/` connects to that bridge and uses the ChromeOS desktop
+Automation tree.
+
+The phone protocol remains unchanged:
+
+```
+phone → WSS :8443 → input/commands.js → chromeos.js
+                                      → WS localhost:8444
+                                      → ChromeOS extension
+                                      → chrome.automation desktop actions
+```
+
+The ChromeOS backend is explicit during this hardware-validation phase:
+
+```bash
+GYROCLOPTER_INPUT_BACKEND=chromeos npm start
+```
+
+No ChromeOS behavior is inferred from `process.platform === "linux"`.

@@ -61,6 +61,12 @@ Scan the QR code with your phone, accept the certificate warning, grant motion p
 
 ---
 
+## ChromeOS
+
+Experimental ChromeOS host support is documented in [CHROMEOS.md](CHROMEOS.md). It uses the normal Gyroclopter server in ChromeOS Linux plus a small unpacked Chrome extension for host-side Automation control.
+
+---
+
 ## Build
 
 ```bash
