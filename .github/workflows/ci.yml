@@ -71,3 +71,14 @@ jobs:
             if (!pkg.main) throw new Error('Missing main');
             console.log('✓ All required fields present');
           "
+  web-pilot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run web:build
+      - run: npm run web:verify

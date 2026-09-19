@@ -268,3 +268,11 @@ Style: CommonJS, 2-space indent, clear commits.
 ## License
 
 [ISC](https://opensource.org/licenses/ISC)
+
+## 0.6 Skunk Works: Web Pilot
+
+The `0.6-skunk` branch contains an experimental browser-native Gyroclopter. Its phone face lives on GitHub Pages; the unpacked **Skunk Works** extension can stay ambient on ordinary HTTP(S) pages after one broad install grant.
+
+Pair the phone once, enable motion, and the active browser tab becomes the cockpit automatically. Switching tabs or navigating carries Web Pilot with you. The public Page is inert without an ephemeral pairing capability.
+
+Private-test instructions live in [web-pilot/README.md](web-pilot/README.md).
