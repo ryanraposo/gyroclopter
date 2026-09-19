@@ -35,9 +35,13 @@ surface actually feels on real ChromeOS hardware.
 
 ChromeOS Settings → Developers → Linux development environment → Set up.
 
-### 2. Get this branch
+### 2. Get the ChromeOS build
 
-In the Linux Terminal:
+PR CI publishes a ready-to-download `gyroclopter-chromeos-extension.zip` artifact alongside the Windows and Linux builds.
+
+Download and unzip that artifact somewhere visible to ChromeOS, such as Downloads.
+
+The Linux host still runs from the current branch for this hardware spike:
 
 ```bash
 git clone -b feature/chromeos-support https://github.com/ryanraposo/gyroclopter.git
@@ -79,7 +83,9 @@ Open `chrome://extensions`.
 
 1. Enable **Developer mode**.
 2. Choose **Load unpacked**.
-3. Select `gyroclopter/chromeos/extension` from Linux files.
+3. Select the unzipped CI artifact folder containing `manifest.json` and `service-worker.js`.
+
+You can still load `gyroclopter/chromeos/extension` from Linux files when developing locally.
 
 The extension badge should show **ON** once it reaches Gyroclopter at
 `ws://localhost:8444`.
