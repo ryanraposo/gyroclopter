@@ -53,6 +53,7 @@
     "artifactName": "${name}-${version}.${ext}",
     "files": [
       "app/**/*",
+      "input/**/*",
       "server.js",
       "client.html"
     ],
