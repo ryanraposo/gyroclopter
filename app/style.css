@@ -184,30 +184,56 @@ h1 span {
 }
 
 body.macos {
-  padding: 0 18px 18px;
-  background: radial-gradient(circle at 50% 8%, #244a73 0, #111e33 44%, #0c1424 100%);
+  position: relative;
+  isolation: isolate;
+  padding: 0 38px 26px;
+  background: transparent;
+}
+
+body.macos::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 90px 18px 8px;
   border: 1px solid #5b7899;
-  border-radius: 30px;
-  box-shadow: inset 0 1px 0 #ffffff33;
+  border-radius: 76px 76px 100px 100px;
+  background: radial-gradient(circle at 50% 0, #244a73 0, #111e33 45%, #0c1424 100%);
+  box-shadow: inset 0 1px 0 #ffffff33, 0 14px 34px #02081288;
 }
 
 body.macos .mac-only {
   display: block;
 }
 
+body.macos li.mac-only {
+  display: list-item;
+}
+
 .mac-rotor {
   position: relative;
-  height: 148px;
-  flex: 0 0 148px;
+  height: 172px;
+  flex: 0 0 172px;
   text-align: center;
   -webkit-app-region: drag;
+}
+
+.mac-rotor::after {
+  content: "";
+  position: absolute;
+  top: 45px;
+  left: calc(50% - 3px);
+  width: 6px;
+  height: 78px;
+  border-radius: 4px;
+  background: linear-gradient(#a6e9ff, #357bad);
+  opacity: 0.65;
 }
 
 .mac-rotor-blade {
   position: absolute;
   top: 37px;
-  left: calc(50% - 112px);
-  width: 224px;
+  left: calc(50% - 202px);
+  width: 404px;
   height: 16px;
   border-radius: 100%;
   background: linear-gradient(90deg, #5dd7ff, #f5f8ff 48%, #5dd7ff);
@@ -229,7 +255,8 @@ body.macos .mac-only {
 
 .mac-rotor-title {
   position: absolute;
-  top: 77px;
+  z-index: 1;
+  top: 110px;
   left: 0;
   right: 0;
   color: #eaf9ff;
@@ -240,7 +267,8 @@ body.macos .mac-only {
 
 .mac-rotor-subtitle {
   position: absolute;
-  top: 110px;
+  z-index: 1;
+  top: 141px;
   left: 0;
   right: 0;
   color: #9ed8ef;
