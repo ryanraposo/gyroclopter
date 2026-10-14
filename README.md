@@ -28,7 +28,15 @@ sudo dpkg -i gyroclopter_*.deb
 Then launch from your applications menu.
 
 ### macOS
-Coming soon!
+Download the universal `.dmg` from the PR build artifacts (or a future release),
+open it, and drag Gyroclopter to Applications. It runs on Apple Silicon and
+Intel Macs. The current CI package is unsigned, so on first launch use
+**Control-click → Open** and confirm the macOS prompt.
+
+When macOS asks for Accessibility access, allow Gyroclopter in **System Settings
+→ Privacy & Security → Accessibility**, then stop and restart the server from
+the menu bar icon. This permission lets the native helper move and click the
+cursor. Connect the phone to the same Wi-Fi network and scan the QR code.
 
 ---
 
@@ -70,15 +78,18 @@ npm run build
 # Or build for specific platforms:
 npm run build:win    # Windows installer (.exe)
 npm run build:linux  # Linux package (.deb)
+npm run build:mac    # Universal macOS DMG and ZIP (run on a Mac)
 ```
 
 **Requirements:**
 - **Linux builds:** No extra dependencies
 - **Windows builds (from Linux):** Requires Wine (`sudo apt install wine64`)
+- **macOS builds:** Xcode Command Line Tools (`clang` and `iconutil`); run on macOS
 
 Produces:
 - `dist/Gyroclopter Setup *.exe` (Windows NSIS installer, ~75 MB)
 - `dist/gyroclopter_*.deb` (Linux Debian package, ~71 MB)
+- `dist/*.dmg` and `dist/*.zip` (universal macOS packages)
 
 ---
 

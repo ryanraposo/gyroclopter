@@ -42,6 +42,9 @@ resources/
 # Generated icon assets (rebuilt by `npm run build:icons`).
 build/icon.ico
 build/icons/
+build/macos/
+build/icon.iconset/
+build/icon.icns
 out/
 .next/
 .nuxt/

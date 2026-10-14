@@ -47,9 +47,10 @@ const { spawn } = require('child_process');
 const WebSocket = require('ws');
 const QRCode = require('qrcode');
 const selfsigned = require('selfsigned');
+const { MacMouseController } = require('./app/macos-mouse-controller');
 
 const CONFIG = {
-    PORT: 8443,
+    PORT: process.env.PORT === undefined ? 8443 : Number(process.env.PORT),
     APP_DIR: path.join(os.tmpdir(), 'gyroclopter'),
     MOUSE_SENSITIVITY_MULTIPLIER: 1.2
 };
@@ -336,9 +337,11 @@ class LinuxMouseController {
 
 // Generic controller that auto-switches based on OS and session
 class GenericMouseController {
-    constructor() {
+    constructor(onError) {
         if (os.platform() === 'win32') {
             this.controller = new WindowsMouseController();
+        } else if (os.platform() === 'darwin') {
+            this.controller = new MacMouseController(onError);
         } else {
             this.controller = new LinuxMouseController();
         }
@@ -459,7 +462,11 @@ async function main() {
         initLogFile();
         ensureAppDir();
         const certificates = await getCertificates();
-        const mouse = new GenericMouseController();
+        let mouseError = null;
+        const mouse = new GenericMouseController((error) => {
+            mouseError = error;
+            emitStatus({ event: 'error', ...error });
+        });
 
         let connectedCount = 0;
 
@@ -523,9 +530,9 @@ async function main() {
         });
 
         const localIp = getLocalIp();
-        const url = `https://${localIp}:${CONFIG.PORT}`;
-
         server.listen(CONFIG.PORT, '0.0.0.0', async () => {
+            const port = server.address().port;
+            const url = `https://${localIp}:${port}`;
             let qr = '';
             try {
                 qr = await QRCode.toDataURL(url, {
@@ -538,9 +545,10 @@ async function main() {
             emitStatus({
                 event: 'started',
                 ip: localIp,
-                port: CONFIG.PORT,
+                port,
                 qr: qr
             });
+            if (mouseError) emitStatus({ event: 'error', ...mouseError });
         });
 
         const shutdown = () => {

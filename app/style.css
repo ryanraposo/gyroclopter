@@ -178,3 +178,7 @@ h1 span {
   padding-top: 8px;
   flex-shrink: 0;
 }
+
+.mac-only {
+  display: none;
+}

@@ -1,0 +1,168 @@
+/* The transparent hero artwork is rendered at 720 px inside a 760 × 800 window. */
+body.macos {
+  display: block;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  color: #251306;
+}
+
+body.macos .mac-only { display: block; }
+body.macos li.mac-only { display: list-item; }
+
+body.macos .mac-character {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 720px;
+  height: 720px;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-app-region: drag;
+}
+
+body.macos .qr-section {
+  position: absolute;
+  z-index: 1;
+  top: 328px;
+  left: 275px;
+  width: 200px;
+  height: 218px;
+  margin: 0;
+  padding: 0;
+  gap: 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  transform: rotate(-17deg);
+  -webkit-app-region: no-drag;
+}
+
+body.macos #qr-canvas {
+  width: 178px;
+  height: 178px;
+  flex: 0 0 178px;
+  border-radius: 0;
+  background: white;
+}
+
+body.macos #qr-canvas img {
+  border-radius: 0;
+  image-rendering: pixelated;
+}
+
+body.macos #qr-placeholder {
+  max-width: 160px;
+  color: #6d4b2c;
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+body.macos #url-display {
+  width: 190px;
+  min-height: 24px;
+  color: #251306;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+body.macos .controls-section {
+  position: absolute;
+  z-index: 2;
+  top: 534px;
+  left: 400px;
+  width: 275px;
+  height: 58px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  -webkit-app-region: no-drag;
+}
+
+body.macos #btn-toggle {
+  position: absolute;
+  top: 5px;
+  left: 3px;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: transparent;
+  font-size: 0;
+}
+
+body.macos #btn-toggle:hover { background: #fff6; }
+body.macos #btn-toggle:focus-visible { outline: 3px solid #3b82f6; outline-offset: 3px; }
+
+body.macos .status-row {
+  position: absolute;
+  top: 7px;
+  left: 62px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  max-width: 205px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 2px solid #3b1907;
+  border-radius: 18px;
+  background: #fff9e8;
+  box-shadow: 2px 3px 0 #5a2508;
+  white-space: nowrap;
+}
+
+body.macos .status-row > div { display: flex; align-items: center; }
+body.macos .status-dot { flex: 0 0 10px; margin-right: 5px; }
+body.macos .status-text,
+body.macos .connected-count { color: #3b1907; font-size: 11px; font-weight: 800; }
+body.macos .connected-count:empty { display: none; }
+
+body.macos .mac-help {
+  position: absolute;
+  z-index: 3;
+  top: 645px;
+  left: 96px;
+  padding: 7px 13px;
+  border: 2px solid #3b1907;
+  border-radius: 20px;
+  background: #fff9e8;
+  color: #3b1907;
+  box-shadow: 2px 3px 0 #5a2508;
+  font: 800 12px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+body.macos .mac-help:hover { background: #ffffff; }
+
+body.macos .instructions {
+  display: none;
+  position: absolute;
+  z-index: 4;
+  top: 400px;
+  left: 40px;
+  width: 255px;
+  max-height: 225px;
+  margin: 0;
+  padding: 16px;
+  border: 3px solid #3b1907;
+  border-radius: 18px;
+  background: #fff9e8;
+  color: #3b1907;
+  box-shadow: 6px 8px 0 #5a2508;
+  font-size: 11px;
+  -webkit-app-region: no-drag;
+}
+
+body.macos.help-open .instructions { display: block; }
+body.macos .footer { display: none; }
