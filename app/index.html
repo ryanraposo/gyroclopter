@@ -6,14 +6,10 @@
   <title>Gyroclopter</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="mac-style.css">
 </head>
 <body>
-  <div class="mac-rotor mac-only" aria-hidden="true">
-    <span class="mac-rotor-blade"></span>
-    <span class="mac-rotor-hub"></span>
-    <span class="mac-rotor-title">GYROCLOPTER</span>
-    <span class="mac-rotor-subtitle">your cursor has cleared for takeoff</span>
-  </div>
+  <img class="mac-character mac-only" src="assets/gyroclopter-shell.png" alt="" aria-hidden="true">
   <div class="card qr-section">
     <div id="qr-canvas">
       <span id="qr-placeholder">Start the server to see the pairing QR code</span>
@@ -21,7 +17,7 @@
     <div id="url-display"></div>
   </div>
 
-  <div class="card">
+  <div class="card controls-section">
     <div class="status-row">
       <div>
         <span class="status-dot stopped" id="status-dot"></span>
@@ -32,7 +28,7 @@
     <button class="btn btn-start" id="btn-toggle">Start Server</button>
   </div>
 
-  <div class="card instructions">
+  <div class="card instructions" id="instructions">
     <ol>
       <li>Connect your phone to the same Wi‑Fi network</li>
       <li>Scan the QR code or enter the URL manually</li>
@@ -43,6 +39,7 @@
     </ol>
   </div>
 
+  <button class="mac-help mac-only" id="btn-help" type="button" aria-controls="instructions" aria-expanded="false">How to fly?</button>
   <div class="footer">v0.5.0</div>
 
   <script src="renderer.js"></script>

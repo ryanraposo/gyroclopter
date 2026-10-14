@@ -21,10 +21,10 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     title: 'Gyroclopter',
     icon: path.join(__dirname, isMac ? 'favicon.png' : 'favicon.ico'),
-    width: isMac ? 460 : 420,
-    height: isMac ? 760 : 700,
+    width: isMac ? 760 : 420,
+    height: isMac ? 800 : 700,
     resizable: false,
-    ...(isMac ? { transparent: true, titleBarStyle: 'hiddenInset', backgroundColor: '#00000000' } : {}),
+    ...(isMac ? { transparent: true, titleBarStyle: 'hiddenInset', backgroundColor: '#00000000', hasShadow: false } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
