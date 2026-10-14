@@ -178,3 +178,91 @@ h1 span {
   padding-top: 8px;
   flex-shrink: 0;
 }
+
+.mac-only {
+  display: none;
+}
+
+body.macos {
+  padding: 0 18px 18px;
+  background: radial-gradient(circle at 50% 8%, #244a73 0, #111e33 44%, #0c1424 100%);
+  border: 1px solid #5b7899;
+  border-radius: 30px;
+  box-shadow: inset 0 1px 0 #ffffff33;
+}
+
+body.macos .mac-only {
+  display: block;
+}
+
+.mac-rotor {
+  position: relative;
+  height: 148px;
+  flex: 0 0 148px;
+  text-align: center;
+  -webkit-app-region: drag;
+}
+
+.mac-rotor-blade {
+  position: absolute;
+  top: 37px;
+  left: calc(50% - 112px);
+  width: 224px;
+  height: 16px;
+  border-radius: 100%;
+  background: linear-gradient(90deg, #5dd7ff, #f5f8ff 48%, #5dd7ff);
+  box-shadow: 0 0 25px #38bdf866;
+  animation: rotor-idle 3s ease-in-out infinite;
+}
+
+.mac-rotor-hub {
+  position: absolute;
+  top: 29px;
+  left: calc(50% - 16px);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e8f9ff;
+  border: 6px solid #317ca6;
+  box-shadow: 0 0 0 5px #10314d;
+}
+
+.mac-rotor-title {
+  position: absolute;
+  top: 77px;
+  left: 0;
+  right: 0;
+  color: #eaf9ff;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.mac-rotor-subtitle {
+  position: absolute;
+  top: 110px;
+  left: 0;
+  right: 0;
+  color: #9ed8ef;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+body.macos .card {
+  border-color: #52738a;
+  background: #152c43ee;
+  box-shadow: 0 6px 18px #02081255;
+}
+
+body.macos .btn-start {
+  background: linear-gradient(120deg, #16a9db, #4169e5);
+}
+
+@keyframes rotor-idle {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(0.72); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mac-rotor-blade { animation: none; }
+}

@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - dev
   push:
     tags:
       - 'v*'
@@ -81,8 +82,45 @@ jobs:
           if-no-files-found: error
           artifactci-visibility: public
 
+  build-macos:
+    needs: test
+    runs-on: macos-15
+    outputs:
+      artifact_url: ${{ steps.upload-mac.outputs.artifactci-run-url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:mac -- --publish=never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Smoke-test native helper and packages
+        run: |
+          set -e
+          file build/macos/gyroclopter-mouse | grep -q 'universal binary'
+          build/macos/gyroclopter-mouse --self-test | grep -q SELF_TEST_OK
+          test -n "$(find dist -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$(find dist -maxdepth 1 -name '*.zip' -print -quit)"
+          HELPER=$(find dist -path '*/Gyroclopter.app/Contents/Resources/native/gyroclopter-mouse' -print -quit)
+          test -n "$HELPER"
+          test -x "$HELPER"
+          "$HELPER" --self-test | grep -q SELF_TEST_OK
+      - id: upload-mac
+        uses: mmkal/artifact.ci/upload@main
+        with:
+          name: macos-universal
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
+          artifactci-visibility: public
+
   post-artifacts:
-    needs: [build-windows, build-linux]
+    needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
@@ -91,38 +129,34 @@ jobs:
           script: |
             const prNumber = context.payload.pull_request?.number;
             if (!prNumber) return;
-          
+
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber
             });
-          
-            const artifactComments = comments.filter(c => 
-              c.user?.type === 'Bot' && c.body?.includes('Build Artifacts Ready')
-            );
-          
-            // Delete all previous artifact comments
-            for (const comment of artifactComments) {
+            for (const comment of comments.filter(c =>
+              c.user?.type === 'Bot' && c.body?.includes('Build Artifacts Ready'))
+            ) {
               await github.rest.issues.deleteComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: comment.id
               });
             }
-          
+
             const winUrl = '${{ needs.build-windows.outputs.artifact_url }}';
             const linuxUrl = '${{ needs.build-linux.outputs.artifact_url }}';
-          
+            const macUrl = '${{ needs.build-macos.outputs.artifact_url }}';
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
-              body: `## ✅ Build Artifacts Ready\n\n| Platform | Download |\n|----------|----------|\n| Windows | [\${{ github.event.repository.name }}.exe](${winUrl}) |\n| Linux | [\${{ github.event.repository.name }}.deb](${linuxUrl}) |\n\n> Direct links via artifact.ci (90-day retention).`
+              body: `## ✅ Build Artifacts Ready\n\n| Platform | Download |\n|----------|----------|\n| Windows | [Installer](${winUrl}) |\n| Linux | [Debian package](${linuxUrl}) |\n| macOS (Intel + Apple Silicon) | [DMG and ZIP](${macUrl}) |\n\n> Direct links via artifact.ci (90-day retention).`
             });
 
   release:
-      needs: [build-windows, build-linux]
+      needs: [build-windows, build-linux, build-macos]
       runs-on: ubuntu-latest
       if: startsWith(github.ref, 'refs/tags/v')
       env:
@@ -152,4 +186,6 @@ jobs:
           files: |
             artifacts/**/*.exe
             artifacts/**/*.deb
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
             CHANGELOG.md

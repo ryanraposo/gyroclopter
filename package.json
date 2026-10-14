@@ -25,7 +25,9 @@
     "clean": "node -e \"const fs=require('fs');['dist','resources'].forEach(d=>fs.rmSync(d,{recursive:true,force:true}))\"",
     "build": "npm run clean && npm run build:icons && electron-builder --win --linux",
     "build:win": "electron-builder --win",
-    "build:linux": "electron-builder --linux"
+    "build:linux": "electron-builder --linux",
+    "build:mac:native": "node scripts/build-mac.js",
+    "build:mac": "npm run build:icons && npm run build:mac:native && electron-builder --mac dmg zip --universal"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",
@@ -75,6 +77,14 @@
       "maintainer": "Ryan Raposo <raposo.ryan@gmail.com>",
       "executableArgs": [
         "--no-sandbox"
+      ]
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.utilities",
+      "extraResources": [
+        { "from": "build/macos/gyroclopter-mouse", "to": "native/gyroclopter-mouse" }
       ]
     }
   }

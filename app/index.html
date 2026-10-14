@@ -8,6 +8,12 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="mac-rotor mac-only" aria-hidden="true">
+    <span class="mac-rotor-blade"></span>
+    <span class="mac-rotor-hub"></span>
+    <span class="mac-rotor-title">GYROCLOPTER</span>
+    <span class="mac-rotor-subtitle">your cursor has cleared for takeoff</span>
+  </div>
   <div class="card qr-section">
     <div id="qr-canvas">
       <span id="qr-placeholder">Start the server to see the pairing QR code</span>
@@ -32,6 +38,7 @@
       <li>Scan the QR code or enter the URL manually</li>
       <li>Accept the self‑signed certificate warning</li>
       <li>Grant motion permission when prompted</li>
+      <li class="mac-only">Allow Gyroclopter in Mac Accessibility settings for mouse control</li>
       <li>Tap <strong>Calibrate</strong> while pointing at the cursor</li>
     </ol>
   </div>

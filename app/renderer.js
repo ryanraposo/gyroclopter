@@ -1,4 +1,7 @@
 // app/renderer.js - Desktop UI controller
+if (window.electronAPI?.platform === 'darwin') {
+  document.body.classList.add('macos');
+}
 const STATE = {
   serverPid: null,
   running: false,

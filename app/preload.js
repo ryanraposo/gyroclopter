@@ -2,6 +2,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  platform: process.platform,
   startServer: () => ipcRenderer.send('start-server'),
   onServerEvent: (callback) => ipcRenderer.on('server-event', (event, msg) => callback(msg)),
   onServerExit: (callback) => ipcRenderer.on('server-exit', (event) => callback()),
