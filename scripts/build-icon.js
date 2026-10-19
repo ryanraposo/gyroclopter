@@ -6,6 +6,7 @@ const pngToIco = pngToIcoLib.default || pngToIcoLib.imagesToIco || pngToIcoLib;
 
 const SOURCE = path.join(__dirname, '..', 'build', 'icon-source.png');
 const ICONS_DIR = path.join(__dirname, '..', 'build', 'icons');
+const APPX_DIR = path.join(__dirname, '..', 'build', 'appx');
 const ICO_PATH = path.join(__dirname, '..', 'build', 'icon.ico');
 const FAVICON_PATH = path.join(__dirname, '..', 'app', 'favicon.ico');
 
@@ -13,6 +14,12 @@ const FAVICON_PATH = path.join(__dirname, '..', 'app', 'favicon.ico');
 const SIZES = [16, 32, 48, 64, 128, 256, 512];
 // Sizes for Windows ICO
 const ICO_SIZES = [16, 32, 48, 64, 128, 256];
+const APPX_ASSETS = {
+  'StoreLogo.png': [50, 50],
+  'Square44x44Logo.png': [44, 44],
+  'Square150x150Logo.png': [150, 150],
+  'Wide310x150Logo.png': [310, 150]
+};
 
 async function resizeIcon(size) {
   const sigma = size <= 32 ? 1.5 : size <= 64 ? 1.0 : 0.5;
@@ -30,6 +37,33 @@ async function resizeIcon(size) {
     .toBuffer();
 }
 
+/**
+ * Creates a Windows package logo on a transparent canvas.
+ *
+ * Wide tiles keep a square logo centered so Windows can apply the package's
+ * configured background color without stretching the artwork.
+ */
+async function createAppxAsset(width, height) {
+  const iconSize = Math.min(width, height);
+  const icon = await resizeIcon(iconSize);
+
+  return await sharp({
+    create: {
+      width,
+      height,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    }
+  })
+    .composite([{
+      input: icon,
+      left: Math.floor((width - iconSize) / 2),
+      top: Math.floor((height - iconSize) / 2)
+    }])
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
 async function main() {
   if (!fs.existsSync(SOURCE)) {
     console.error(`Source image not found: ${SOURCE}`);
@@ -43,11 +77,23 @@ async function main() {
   if (!fs.existsSync(ICONS_DIR)) {
     fs.mkdirSync(ICONS_DIR, { recursive: true });
   }
+  if (!fs.existsSync(APPX_DIR)) {
+    fs.mkdirSync(APPX_DIR, { recursive: true });
+  }
 
   // Generate PNG icons with Lanczos resampling and sharpening
   for (const size of SIZES) {
     const outputPath = path.join(ICONS_DIR, `${size}x${size}.png`);
     const buffer = await resizeIcon(size);
+    fs.writeFileSync(outputPath, buffer);
+    const stats = fs.statSync(outputPath);
+    console.log(`  wrote ${outputPath} (${stats.size} bytes)`);
+  }
+
+  // Generate the package logos used by electron-builder's AppX target.
+  for (const [name, [width, height]] of Object.entries(APPX_ASSETS)) {
+    const outputPath = path.join(APPX_DIR, name);
+    const buffer = await createAppxAsset(width, height);
     fs.writeFileSync(outputPath, buffer);
     const stats = fs.statSync(outputPath);
     console.log(`  wrote ${outputPath} (${stats.size} bytes)`);

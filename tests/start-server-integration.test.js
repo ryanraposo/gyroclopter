@@ -42,6 +42,7 @@ describe('Start Server Integration', () => {
     const cleanup = (err) => {
       if (cleanupDone) return;
       cleanupDone = true;
+      clearTimeout(timeoutId);
       
       try {
         serverProcess.kill();
@@ -96,11 +97,17 @@ describe('Start Server Integration', () => {
     serverProcess.on('exit', (code) => {
       if (!serverStarted && code !== 0) {
         cleanup(new Error('Server exited with code ' + code));
+      } else if (serverStarted) {
+        // Server started and then exited (likely from our kill) — wait for this
+        // and then call done to avoid Jest detecting leaked handles
+        cleanupDone = true;
+        clearTimeout(timeoutId);
+        done();
       }
     });
 
     // Timeout
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       if (!serverStarted) {
         cleanup(new Error('Server did not start within timeout'));
       }

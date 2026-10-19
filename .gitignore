@@ -26,6 +26,9 @@ lerna-debug.log*
 .env.production.local
 *.env
 *.env.*
+store-config.local.json
+MICROSOFT_STORE.local.md
+WINDOWS_STORE_TODO.local.md
 
 # ==========================================
 # Testing & Coverage
@@ -42,6 +45,8 @@ resources/
 # Generated icon assets (rebuilt by `npm run build:icons`).
 build/icon.ico
 build/icons/
+build/appx/
+handoff/
 out/
 .next/
 .nuxt/
@@ -72,6 +77,3 @@ Thumbs.db
 # Hermes Agent (Local Configuration)
 # ==========================================
 .hermes/
-
-
-

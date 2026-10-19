@@ -22,9 +22,11 @@
     "test": "jest",
     "test:playwright": "npx playwright test",
     "build:icons": "node scripts/build-icon.js",
+    "check:win:store": "node scripts/check-windows-store-config.js",
     "clean": "node -e \"const fs=require('fs');['dist','resources'].forEach(d=>fs.rmSync(d,{recursive:true,force:true}))\"",
     "build": "npm run clean && npm run build:icons && electron-builder --win --linux",
     "build:win": "electron-builder --win",
+    "build:win:store": "npm run build:icons && electron-builder --config electron-builder.store.js",
     "build:linux": "electron-builder --linux"
   },
   "devDependencies": {
