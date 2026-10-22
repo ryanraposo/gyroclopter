@@ -85,6 +85,24 @@
             color: var(--text-dim);
         }
 
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .setting-divider {
+            height: 1px;
+            background: #334155;
+            margin: 4px 0;
+        }
+
+        .setting-hint {
+            font-size: 0.72rem;
+            line-height: 1.3;
+            color: var(--text-dim);
+        }
+
         input[type="range"] {
             width: 100%;
             accent-color: var(--accent);
@@ -197,11 +215,24 @@
 
     <div class="control-panel">
         <div class="card sensitivity-control">
-            <div class="label-row">
-                <span>Sensitivity</span>
-                <span id="sens-val">10</span>
+            <div class="setting-group">
+                <div class="label-row">
+                    <span>Sensitivity</span>
+                    <span id="sens-val">10</span>
+                </div>
+                <input type="range" id="sens-slider" min="1" max="25" value="10">
             </div>
-            <input type="range" id="sens-slider" min="1" max="25" value="10">
+
+            <div class="setting-divider"></div>
+
+            <div class="setting-group">
+                <div class="label-row">
+                    <span>Click Stability</span>
+                    <span id="click-stability-val">8 px</span>
+                </div>
+                <input type="range" id="click-stability-slider" min="0" max="24" step="1" value="8">
+                <div class="setting-hint">Prevents tiny motion from becoming a drag.</div>
+            </div>
         </div>
 
         <div class="main-pad active" id="track-pad">
@@ -215,19 +246,35 @@
         </div>
     </div>
 
+    <script src="/click-stability.js"></script>
     <script>
         const state = {
             ws: null,
             connected: false,
             active: true,
             sensitivity: 10,
+            clickStability: 8,
             calibrated: false
         };
+
+        const savedClickStability = Number.parseInt(
+            localStorage.getItem('gyroclopter.clickStability'),
+            10
+        );
+        if (Number.isFinite(savedClickStability) &&
+            savedClickStability >= 0 &&
+            savedClickStability <= 24) {
+            state.clickStability = savedClickStability;
+        }
+
+        const clickStability = new ClickStabilityGate(state.clickStability);
 
         const els = {
             status: document.getElementById('status'),
             sensSlider: document.getElementById('sens-slider'),
             sensVal: document.getElementById('sens-val'),
+            clickStabilitySlider: document.getElementById('click-stability-slider'),
+            clickStabilityVal: document.getElementById('click-stability-val'),
             trackPad: document.getElementById('track-pad'),
             padStatus: document.getElementById('pad-status'),
             leftClick: document.getElementById('left-click'),
@@ -239,6 +286,13 @@
             startBtn: document.getElementById('start-btn'),
             calibrateBtn: document.getElementById('calibrate-btn')
         };
+
+        function formatClickStability(value) {
+            return value === 0 ? 'Off' : `${value} px`;
+        }
+
+        els.clickStabilitySlider.value = state.clickStability;
+        els.clickStabilityVal.textContent = formatClickStability(state.clickStability);
 
         function connect() {
             const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -281,7 +335,10 @@
             const dx = Math.round(-gamma * state.sensitivity * 0.05);
             const dy = Math.round(-alpha * state.sensitivity * 0.05);
             if (dx !== 0 || dy !== 0) {
-                send({ type: 'move', dx, dy });
+                const movement = clickStability.filter(dx, dy);
+                if (movement) {
+                    send({ type: 'move', dx: movement.dx, dy: movement.dy });
+                }
             }
         }
 
@@ -321,17 +378,37 @@
             els.sensVal.textContent = state.sensitivity;
         };
 
+        els.clickStabilitySlider.oninput = (e) => {
+            state.clickStability = Number.parseInt(e.target.value, 10);
+            clickStability.setThreshold(state.clickStability);
+            els.clickStabilityVal.textContent = formatClickStability(state.clickStability);
+            localStorage.setItem('gyroclopter.clickStability', String(state.clickStability));
+        };
+
         els.trackPad.onclick = () => {
             state.active = !state.active;
             els.trackPad.classList.toggle('active', state.active);
             els.padStatus.textContent = state.active ? 'ACTIVE' : 'PAUSED';
         };
 
-        els.leftClick.ontouchstart = (e) => { e.preventDefault(); send({ type: 'down' }); };
-        els.leftClick.ontouchend = (e) => { e.preventDefault(); send({ type: 'up' }); };
-        els.leftClick.onmousedown = () => send({ type: 'down' });
-        els.leftClick.onmouseup = () => send({ type: 'up' });
-        els.leftClick.onmouseleave = () => send({ type: 'up' });
+        function beginLeftPress() {
+            if (clickStability.pressed) return;
+            clickStability.press();
+            send({ type: 'down' });
+        }
+
+        function endLeftPress() {
+            if (!clickStability.pressed) return;
+            clickStability.release();
+            send({ type: 'up' });
+        }
+
+        els.leftClick.ontouchstart = (e) => { e.preventDefault(); beginLeftPress(); };
+        els.leftClick.ontouchend = (e) => { e.preventDefault(); endLeftPress(); };
+        els.leftClick.ontouchcancel = (e) => { e.preventDefault(); endLeftPress(); };
+        els.leftClick.onmousedown = beginLeftPress;
+        els.leftClick.onmouseup = endLeftPress;
+        els.leftClick.onmouseleave = endLeftPress;
 
         els.rightClick.ontouchstart = (e) => { e.preventDefault(); send({ type: 'right' }); };
         els.rightClick.onmousedown = () => send({ type: 'right' });

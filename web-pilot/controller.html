@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1020">
+  <title>Gyroclopter · Skunk Works</title>
+  <link rel="stylesheet" href="./controller.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div><strong>GYROCLopter</strong><span>SKUNK WORKS · 0.6</span></div>
+      <button id="pause" class="quiet" type="button">PAUSE</button>
+    </header>
+
+    <section class="status-row">
+      <div><i id="relay-dot"></i><span id="relay-status">Relay‧</span></div>
+      <div><i id="pilot-dot"></i><span id="pilot-status">Browser‧</span></div>
+    </section>
+
+    <section class="card sensitivity">
+      <label for="sensitivity">Sensitivity <b id="sensitivity-value">10</b></label>
+      <input id="sensitivity" type="range" min="1" max="25" value="10">
+    </section>
+
+    <section id="motion-pad" class="motion-pad active" aria-label="motion control">
+      <div class="reticle"></div>
+      <strong id="motion-label">ACTIVE</strong>
+      <span>point your phone · rotate to steer</span>
+    </section>
+
+    <section class="buttons">
+      <button id="left" type="button">LEFT</button>
+      <button id="right" type="button">RIGHT</button>
+      <button id="scroll" class="scroll" type="button">↕ SCROLL ↕</button>
+    </section>
+  </main>
+
+  <div id="gate" class="gate">
+    <div class="gate-card">
+      <div class="mark">⌁</div>
+      <h1>Web Pilot</h1>
+      <p>Gyroclopter needs motion access. Pair once. When the browser is present, Gyroclopter follows you from page to page.</p>
+      <button id="start" type="button">ENABLE MOTION</button>
+      <small id="gate-note">The page is inert without a pairing capability. No page data is sent through the relay.</small>
+    </div>
+  </div>
+  <script src="./controller.js"></script>
+</body>
+</html>

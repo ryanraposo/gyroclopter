@@ -17,12 +17,14 @@ const STATE = {
 let mainWindow;
 
 function createWindow() {
+  const isMac = process.platform === 'darwin';
   mainWindow = new BrowserWindow({
     title: 'Gyroclopter',
-    icon: path.join(__dirname, 'favicon.ico'),
-    width: 420,
-    height: 700,
+    icon: path.join(__dirname, isMac ? 'favicon.png' : 'favicon.ico'),
+    width: isMac ? 760 : 420,
+    height: isMac ? 800 : 700,
     resizable: false,
+    ...(isMac ? { transparent: true, titleBarStyle: 'hiddenInset', backgroundColor: '#00000000', hasShadow: false } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -225,14 +227,15 @@ function updateTrayMenu() {
 }
 
 function createTray() {
-  // On Windows, use ICO format for best tray icon support
-  // On Linux, use PNG from the icons directory
-  const iconPath = process.platform === 'win32' 
-    ? path.join(__dirname, '..', 'build', 'icon.ico')
-    : path.join(__dirname, '..', 'build', 'icons', '16x16.png');
-  const trayIcon = nativeImage.createFromPath(iconPath);
+  // Keep platform-specific icon formats inside app.asar for installed builds.
+  const iconPath = path.join(__dirname,
+    process.platform === 'win32' ? 'favicon.ico' : 'favicon.png');
+  const source = nativeImage.createFromPath(iconPath);
+  const trayIcon = process.platform === 'win32' ? source : source.resize({ width: 18, height: 18 });
+  if (process.platform === 'darwin') trayIcon.setTemplateImage(true);
   
   STATE.tray = new Tray(trayIcon);
+  STATE.tray.setToolTip('Gyroclopter');
   updateTrayMenu();
   
   STATE.tray.on('click', () => {
@@ -285,5 +288,8 @@ app.on('will-quit', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+  } else if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
   }
 });

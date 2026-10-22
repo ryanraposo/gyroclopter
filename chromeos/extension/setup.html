@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gyroclopter · ChromeOS</title>
+  <link rel="stylesheet" href="setup.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Gyroclopter · ChromeOS</h1>
+      <div class="status-row"><span id="bridge-dot" class="dot"></span><span id="bridge-status">Checking bridge…</span></div>
+      <div class="status-row"><span id="automation-dot" class="dot"></span><span id="automation-status">Checking Automation…</span></div>
+    </header>
+    <section>
+      <h2>1 · Chromebook Wi-Fi IP</h2>
+      <p>ChromeOS Settings → Network → Wi-Fi → your connected network → IP address.</p>
+      <div class="input-row">
+        <input id="host-ip" inputmode="decimal" autocomplete="off" placeholder="192.168.1.42">
+        <button id="save">Save</button>
+      </div>
+      <p id="save-status" class="small"></p>
+    </section>
+    <section>
+      <h2>2 · Forward port 8443</h2>
+      <p>ChromeOS Settings → Developers → Linux development environment → Port forwarding.</p>
+      <p>Add <strong>8443 / TCP</strong>, label it <strong>Gyroclopter</strong>, and turn it on.</p>
+    </section>
+    <section>
+      <h2>3 · Launch Gyroclopter</h2>
+      <p>Open Gyroclopter from the ChromeOS launcher. Its QR code updates to the saved Wi-Fi IP automatically.</p>
+    </section>
+    <footer>When both status lights are ready, scan the Gyroclopter QR code with your phone.</footer>
+  </main>
+  <script src="setup.js"></script>
+</body>
+</html>

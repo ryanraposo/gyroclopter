@@ -29,8 +29,8 @@ describe('Start Server Integration', () => {
   test('server.js can be spawned via node and responds on HTTPS', (done) => {
     const serverPath = path.join(__dirname, '..', 'server.js');
     
-    // Spawn server with a test port via CERT_DIR
-    const env = { ...process.env, CERT_DIR: testCertDir };
+    // Use an ephemeral port so a running desktop app cannot collide with the test.
+    const env = { ...process.env, CERT_DIR: testCertDir, PORT: '0' };
     const serverProcess = spawn(process.execPath, [serverPath], {
       env,
       stdio: ['ignore', 'pipe', 'pipe']
@@ -38,10 +38,12 @@ describe('Start Server Integration', () => {
 
     let serverStarted = false;
     let cleanupDone = false;
+    let timeoutId;
 
     const cleanup = (err) => {
       if (cleanupDone) return;
       cleanupDone = true;
+      clearTimeout(timeoutId);
       
       try {
         serverProcess.kill();
@@ -100,7 +102,7 @@ describe('Start Server Integration', () => {
     });
 
     // Timeout
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       if (!serverStarted) {
         cleanup(new Error('Server did not start within timeout'));
       }
