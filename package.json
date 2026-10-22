@@ -27,7 +27,11 @@
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux",
     "build:mac:native": "node scripts/build-mac.js",
-    "build:mac": "npm run build:icons && npm run build:mac:native && electron-builder --mac dmg zip --universal"
+    "build:mac": "npm run build:icons && npm run build:mac:native && electron-builder --mac dmg zip --universal",
+    "start:chromeos": "GYROCLOPTER_INPUT_BACKEND=chromeos electron .",
+    "web:dev": "node web-pilot/dev-server.js",
+    "web:build": "node scripts/build-web-pilot.js",
+    "web:verify": "node scripts/verify-web-pilot.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",
@@ -55,10 +59,16 @@
     "artifactName": "${name}-${version}.${ext}",
     "files": [
       "app/**/*",
+      "input/**/*",
       "server.js",
       "client.html"
     ],
-    "extraResources": [],
+    "extraResources": [
+      {
+        "from": "chromeos/extension",
+        "to": "chromeos-extension"
+      }
+    ],
     "directories": {
       "buildResources": "build"
     },

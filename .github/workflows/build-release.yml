@@ -1,17 +1,13 @@
 name: build-artifacts
 
 on:
-  pull_request:
-    branches:
-      - main
-      - dev
+  workflow_dispatch:
   push:
     tags:
       - 'v*'
 
 permissions:
   contents: write
-  pull-requests: write
 
 env:
   NODE_VERSION: '22'
@@ -40,6 +36,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       - run: npm ci
+      - run: npm run build:icons
       - run: npm run build:win -- --publish=never
       - name: Smoke-test the .exe
         shell: pwsh
@@ -67,6 +64,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       - run: npm ci
+      - run: npm run build:icons
       - run: npm run build:linux -- --publish=never
       - name: Smoke-test the .deb
         run: |
@@ -81,6 +79,20 @@ jobs:
           path: dist/*.deb
           if-no-files-found: error
           artifactci-visibility: public
+      - name: Package ChromeOS test kit
+        run: |
+          mkdir -p dist/chromeos-kit
+          cp -R chromeos/extension dist/chromeos-kit/extension
+          cp chromeos/README-FIRST.txt dist/chromeos-kit/
+          cp CHROMEOS.md dist/chromeos-kit/
+          cd dist/chromeos-kit
+          zip -r ../gyroclopter-chromeos-test-kit.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chromeos-test-kit
+          path: dist/gyroclopter-chromeos-test-kit.zip
+          if-no-files-found: error
+          retention-days: 7
 
   build-macos:
     needs: test
@@ -118,42 +130,6 @@ jobs:
             dist/*.zip
           if-no-files-found: error
           artifactci-visibility: public
-
-  post-artifacts:
-    needs: [build-windows, build-linux, build-macos]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            const prNumber = context.payload.pull_request?.number;
-            if (!prNumber) return;
-
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber
-            });
-            for (const comment of comments.filter(c =>
-              c.user?.type === 'Bot' && c.body?.includes('Build Artifacts Ready'))
-            ) {
-              await github.rest.issues.deleteComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: comment.id
-              });
-            }
-
-            const winUrl = '${{ needs.build-windows.outputs.artifact_url }}';
-            const linuxUrl = '${{ needs.build-linux.outputs.artifact_url }}';
-            const macUrl = '${{ needs.build-macos.outputs.artifact_url }}';
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: `## ✅ Build Artifacts Ready\n\n| Platform | Download |\n|----------|----------|\n| Windows | [Installer](${winUrl}) |\n| Linux | [Debian package](${linuxUrl}) |\n| macOS (Intel + Apple Silicon) | [DMG and ZIP](${macUrl}) |\n\n> Direct links via artifact.ci (90-day retention).`
-            });
 
   release:
       needs: [build-windows, build-linux, build-macos]

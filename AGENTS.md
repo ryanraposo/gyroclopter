@@ -75,13 +75,19 @@ Electron Main → spawns → server.js (child process)
           DeviceMotion → WS commands → Mouse injection
 ```
 
-### Platform-Specific Mouse Injection
-- **Windows**: PowerShell + P/Invoke (`user32.dll::mouse_event`)
-  - Spawns temp `.ps1` script, waits for "READY" signal
-  - Command protocol: `MOVE dx dy`, `LEFT_DOWN`, `LEFT_UP`, `CLICK_RIGHT`, `SCROLL delta`
-- **Linux (X11)**: `xdotool` commands
-- **Linux (Wayland)**: `ydotool` commands
-- **macOS**: **Not implemented** – avoid adding macOS mouse controls
+### Platform Input
+The wire protocol and host input are intentionally separate.
+
+- `input/commands.js` validates mobile messages and emits the stable command protocol:
+  `MOVE dx dy`, `LEFT_DOWN`, `LEFT_UP`, `CLICK_RIGHT`, `SCROLL delta`
+- `input/windows.js`: PowerShell + P/Invoke (`user32.dll::mouse_event`)
+- `input/linux.js`: `xdotool` on X11, `ydotool` on Wayland
+- macOS: shared input factory selects the existing native CoreGraphics helper
+- ChromeOS: loopback Automation bridge; Web Pilot: experimental browser extension
+- unsupported platforms use an explicit no-op backend rather than falling through to Linux
+- `GYROCLOPTER_INPUT_BACKEND` may select a backend explicitly for development/platform bridges
+
+See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### JSON stdout Protocol (Server → Electron)
 Server emits structured JSON lines for parent process integration:
@@ -168,14 +174,14 @@ gyroclopter/
 ---
 
 ## Known Issues & Quirks
-- macOS mouse injection missing.
-- macOS builds not yet configured in electron-builder.
+- macOS uses the native helper in `app/macos-mouse-controller.js`, selected through `input/index.js`. Native builds require a Mac.
+- ChromeOS and Web Pilot remain experimental until tested on physical devices.
 - Keep this file under 20 000 characters (truncation limit).
 
 ---
 
 ## Contributing Checklist
-1. **Fork** the repo and create a feature branch.
+1. Keep `main` and `dev` permanent, with at most one active feature branch and feature PR targeting `dev`. Continue existing work on that branch; preserve unique commits before retiring other branches.
 2. **Run** `npm test` locally; ensure all tests pass.
 3. **Make** changes adhering to the style guidelines above.
 4. **Run** `npm run build` and optionally test the generated installer.

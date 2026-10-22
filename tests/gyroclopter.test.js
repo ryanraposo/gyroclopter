@@ -56,6 +56,17 @@ describe('Gyroclopter Test Suite', () => {
   // UTILITY FUNCTIONS
   // ============================================================================
   describe('Utility Functions', () => {
+    test('getLocalIp falls back to loopback when interface discovery is unavailable', () => {
+      const interfaces = jest.spyOn(os, 'networkInterfaces').mockImplementation(() => {
+        throw new Error('interface discovery unavailable');
+      });
+      try {
+        expect(getLocalIp()).toBe('127.0.0.1');
+      } finally {
+        interfaces.mockRestore();
+      }
+    });
+
     test('getLocalIp returns valid IPv4 format', () => {
       const ip = getLocalIp();
       expect(ip).toMatch(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/);

@@ -2,73 +2,37 @@ name: CI
 
 on:
   pull_request:
-    branches:
-      - main
-      - dev
+    branches: [main, dev]
   push:
-    branches:
-      - '**'
-      - '!main'
+    branches: [main, dev]
+  workflow_dispatch:
 
-env:
-  NODE_VERSION: '22'
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
       - uses: actions/checkout@v5
-      
       - uses: actions/setup-node@v5
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
+          node-version: '22'
+          cache: npm
       - run: npm ci
-      - run: npm test
-
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      
-      - uses: actions/setup-node@v5
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - run: npm ci
+      - run: npm test -- --runInBand
       - run: npm run build:icons
-      
-      - name: Verify build configuration
+      - run: npm run web:build
+      - run: npm run web:verify
+      - name: Validate ChromeOS extension and packaging
         run: |
-          echo "Build configuration valid"
-          npx electron-builder --help > /dev/null
-          echo "electron-builder is ready"
-
-  lint-types:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      
-      - uses: actions/setup-node@v5
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - run: npm ci
-      
-      - name: Check package.json structure
-        run: |
-          node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"
-          echo "✓ package.json is valid JSON"
-      
-      - name: Verify required fields
-        run: |
-          node -e "
-            const pkg = require('./package.json');
-            if (!pkg.name) throw new Error('Missing name');
-            if (!pkg.version) throw new Error('Missing version');
-            if (!pkg.main) throw new Error('Missing main');
-            console.log('✓ All required fields present');
-          "
+          node --check chromeos/extension/service-worker.js
+          node --check chromeos/extension/setup.js
+          node -e "JSON.parse(require('fs').readFileSync('chromeos/extension/manifest.json', 'utf8')); const p=require('./package.json'); if(!p.name || !p.version || !p.main || !p.build.files.includes('input/**/*')) throw new Error('Invalid package metadata or missing input backends')"

@@ -28,7 +28,7 @@ sudo dpkg -i gyroclopter_*.deb
 Then launch from your applications menu.
 
 ### macOS
-Download the universal `.dmg` from the PR build artifacts (or a future release),
+Download the universal `.dmg` from a manually requested build artifact (or a future release),
 open it, and drag Gyroclopter to Applications. It runs on Apple Silicon and
 Intel Macs. The current CI package is unsigned, so on first launch use
 **Control-click → Open** and confirm the macOS prompt.
@@ -66,6 +66,12 @@ npm start
 ```
 
 Scan the QR code with your phone, accept the certificate warning, grant motion permission, and calibrate.
+
+---
+
+## ChromeOS
+
+Experimental ChromeOS host support is documented in [CHROMEOS.md](CHROMEOS.md). It uses the normal Gyroclopter server in ChromeOS Linux plus a small unpacked Chrome extension for host-side Automation control.
 
 ---
 
@@ -200,6 +206,7 @@ Window minimizes to tray; quit from tray to stop server.
 | Tap **RIGHT**      | Right-click                                |
 | Swipe **SCROLL**   | Scroll up/down                             |
 | Sensitivity slider | Adjust speed (1–25)                        |
+| Click Stability    | Suppress tiny motion while clicking; deliberate movement still becomes a drag |
 
 ---
 
@@ -279,3 +286,17 @@ Style: CommonJS, 2-space indent, clear commits.
 ## License
 
 [ISC](https://opensource.org/licenses/ISC)
+
+## 0.6 Skunk Works: Web Pilot
+
+The consolidated platform branch includes an experimental browser-native Gyroclopter. Its phone face lives on GitHub Pages; the unpacked **Skunk Works** extension can stay ambient on ordinary HTTP(S) pages after one broad install grant.
+
+Pair the phone once, enable motion, and the active browser tab becomes the cockpit automatically. Switching tabs or navigating carries Web Pilot with you. The public Page is inert without an ephemeral pairing capability.
+
+Private-test instructions live in [web-pilot/README.md](web-pilot/README.md).
+
+## Development and build policy
+
+`main` and `dev` are permanent; keep one active feature branch and feature PR into `dev`.
+Portable CI runs tests, icons, ChromeOS syntax/packaging checks, and Web Pilot verification in one `ubuntu-latest` job. Native installers are built on explicit manual dispatch or release tags; PR updates do not start Windows/macOS packaging.
+The shared `input/` factory selects Windows, Linux, macOS, or ChromeOS without changing the phone protocol. Mac accessibility errors still reach the desktop UI. ChromeOS and Web Pilot require physical-device acceptance before they are advertised as supported.

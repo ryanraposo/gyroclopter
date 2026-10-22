@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Gyroclopter · Skunk Works</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0a0f1a;--card:#121a2a;--line:#26334d;--text:#f6f8ff;--muted:#94a3bd;--accent:#7dd3fc;--good:#6ee7b7;--bad:#fda4af}
+    *{box-sizing:border-box}body{margin:0;width:360px;background:var(--bg);color:var(--text);font:14px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:14px}
+    header{display:flex;align-items:center;gap:10px;margin-bottom:12px}header img{width:34px;height:34px}h1{font-size:16px;margin:0}small,.muted{color:var(--muted)}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}.row{display:flex;gap:8px;align-items:center}.grow{flex:1}
+    input[type=text]{width:100%;background:#0d1422;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:9px}
+    button{border:1px solid var(--line);border-radius:9px;background:#1a253c;color:var(--text);padding:9px 11px;font-weight:700;cursor:pointer}
+    button.primary{background:var(--accent);color:#07111d;border-color:transparent}.dot{width:8px;height:8px;border-radius:50%;background:var(--bad);display:inline-block;margin-right:6px}.dot.good{background:var(--good)}
+    label.toggle{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 0}.qr{display:none;width:190px;height:190px;background:white;border-radius:10px;padding:6px;margin:10px auto 2px}
+    .status{font-size:12px;color:var(--muted)}#error{min-height:16px;color:var(--bad);font-size:12px;margin-top:8px}
+  </style>
+</head>
+<body>
+  <header><img src="icons/48.png" alt=""><div><h1>Gyroclopter · Skunk Works</h1><small>0.6 / ambient Web Pilot</small></div></header>
+
+  <div class="card">
+    <div class="status"><span id="relay-dot" class="dot"></span><span id="relay-status">Relay disconnected</span></div>
+    <div class="status" style="margin-top:5px"><span id="phone-dot" class="dot"></span><span id="phone-status">Phone not paired</span></div>
+    <input id="relay-url" type="text" value="https://127.0.0.1:9443" spellcheck="false" style="margin-top:10px">
+    <div class="row" style="margin-top:8px">
+      <button id="trust" class="grow">Trust local relay</button>
+      <button id="pair" class="primary grow">Pair phone</button>
+    </div>
+    <img id="qr" class="qr" alt="Pairing QR">
+  </div>
+
+  <div class="card">
+    <label class="toggle"><span><b>Ambient Pilot</b><br><small>Follow me to every normal tab</small></span><input id="auto" type="checkbox" checked></label>
+    <label class="toggle"><span><b>Full Control</b><br><small>CDP input for stubborn web apps</small></span><input id="full" type="checkbox"></label>
+    <div class="row" style="margin-top:8px">
+      <button id="arm" class="primary grow">Wake this tab</button>
+      <button id="pause" class="grow">Pause everywhere</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <button id="reset" class="grow">Reset site learning</button>
+    <button id="forget">Forget phone</button>
+  </div>
+  <div id="error"></div>
+  <script src="popup-skunk.js"></script>
+</body>
+</html>
