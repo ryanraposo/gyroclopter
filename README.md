@@ -265,6 +265,91 @@ Style: CommonJS, 2-space indent, clear commits.
 
 ---
 
+## Release Process
+
+Gyroclopter releases are cut from the `dev` branch and shipped via GitHub Actions when a `v*` tag is pushed.
+
+### 1. Prepare the release on `dev`
+
+All release-targeted changes should be merged into `dev` first.
+
+```bash
+git checkout dev
+git merge origin/dev   # incorporate any remote dev work
+```
+
+### 2. Bump the version
+
+Update the version in `package.json` (SemVer `MAJOR.MINOR.PATCH`):
+
+```json
+{
+  "version": "0.6.0"
+}
+```
+
+### 3. Update the changelog
+
+Add a release entry at the top of `CHANGELOG.md` using [Keep a Changelog](https://keepachangelog.com/) format:
+
+```markdown
+## [0.6.0](https://github.com/ryanraposo/gyroclopter/compare/v0.5.0...v0.6.0) (2026-11-01)
+
+### Added
+- New feature description
+
+### Fixed
+- Bug fix description
+```
+
+### 4. Verify
+
+Tests must pass before committing:
+
+```bash
+npm test
+```
+
+Optionally verify the build locally:
+
+```bash
+npm run build
+```
+
+### 5. Commit and merge into `main`
+
+Commit the version bump and changelog with a conventional message, then merge `dev` into `main`:
+
+```bash
+git add package.json CHANGELOG.md
+git commit -m "chore: release v0.6.0"
+
+git checkout main
+git merge dev
+```
+
+### 6. Tag the release
+
+Create an annotated tag and push both the branch and the tag:
+
+```bash
+git tag -a v0.6.0 -m "Release v0.6.0"
+git push origin main v0.6.0
+```
+
+Pushing a `v*` tag triggers the `build-release.yml` GitHub Actions workflow, which:
+- Runs the Jest test suite
+- Builds the Windows NSIS installer (`.exe`) and Linux Debian package (`.deb`)
+- Creates a GitHub Release with release notes and attaches both installers
+
+### 7. Verify the release
+
+Check the [Releases page](https://github.com/ryanraposo/gyroclopter/releases) for:
+- Release notes generated from the commit history
+- Both Windows and Linux installers attached
+
+---
+
 ## License
 
 [ISC](https://opensource.org/licenses/ISC)
