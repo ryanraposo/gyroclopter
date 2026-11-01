@@ -1,3 +1,18 @@
+# [0.6.0](https://github.com/ryanraposo/gyroclopter/compare/v0.5.0...v0.6.0) (2026-11-01)
+
+
+### Added
+
+* Microsoft Store AppX build support (`.appx` Windows Store packaging)
+* `LICENSE` and `PRIVACY.md` project files
+
+
+### Build Artifacts
+
+* Windows: gyroclopter-0.6.0.exe (NSIS installer)
+* Linux: gyroclopter_0.6.0_amd64.deb (Debian package)
+
+
 # [0.5.0](https://github.com/ryanraposo/gyroclopter/compare/v0.3.1...v0.5.0) (2026-06-30)
 
 
