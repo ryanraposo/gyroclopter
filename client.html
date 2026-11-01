@@ -9,7 +9,7 @@ body{height:100dvh;overflow:hidden;background:#eadcc8;color:var(--ink);font-fami
 header{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 0 12px}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
 .logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center}
-.logo img{width:52px;height:52px;object-fit:contain;border-radius:12px;image-rendering:auto}
+.logo .mascot{width:52px;height:52px;display:block;overflow:visible}
 .wordmark{font-weight:1000;font-size:clamp(18px,5vw,24px);line-height:.95;letter-spacing:.08em}
 .wordmark span{display:block}
 .status{display:flex;align-items:center;gap:6px;font-size:8px;font-weight:900;letter-spacing:.08em;white-space:nowrap}
@@ -41,7 +41,22 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:15px;height:15px;m
 @media(max-height:700px){header{padding:2px 0 7px}.logo,.logo img{width:42px;height:42px}.logo{flex-basis:42px}.settings{gap:4px}.setting{padding:5px 9px 4px}.playfield{min-height:65px}.key{min-height:90px}.connect{flex-basis:42px;height:42px}.guard{padding-top:5px}}
 </style></head><body>
 <main class="app">
-<header><div class="brand"><div class="logo"><img src="/favicon.ico" alt="Gyroclopter mascot"></div><div class="wordmark">GYROCLOPTER</div></div><div class="status"><i class="dot" id="status-dot"></i><span id="status-text">DISCONNECTED</span></div></header>
+<header><div class="brand"><div class="logo"><svg class="mascot" viewBox="0 0 64 64" role="img" aria-label="Gyroclopter mascot" xmlns="http://www.w3.org/2000/svg">
+<defs><linearGradient id="body" x2=".15" y2="1"><stop stop-color="#ffb326"/><stop offset="1" stop-color="#f47708"/></linearGradient><linearGradient id="gold" x2="0" y2="1"><stop stop-color="#ffe75a"/><stop offset="1" stop-color="#ff9f00"/></linearGradient></defs>
+<g stroke="#35190d" stroke-width="2" stroke-linejoin="round">
+<path d="M3 13C10 8 21 8 30 14 23 20 12 20 3 16Z" fill="#ef3024"/><path d="M4 12h8l12 5c-6 2-13 2-19 0Z" fill="#1764de"/><path d="M5 11c7-3 13-3 19 0l-4 3H4Z" fill="#20bc4b" stroke="none"/>
+<path d="M61 13C54 8 43 8 34 14c7 6 18 6 27 2Z" fill="#ef3024"/><path d="M60 12h-8l-12 5c6 2 13 2 19 0Z" fill="#1764de"/><path d="M59 11c-7-3-13-3-19 0l4 3h16Z" fill="#20bc4b" stroke="none"/>
+<path d="M29 12a3 3 0 0 1 6 0v13h-6Z" fill="url(#gold)"/><path d="M25 12a7 7 0 0 1 14 0v4H25Z" fill="url(#gold)"/>
+<path d="M16 22c1-7 7-11 16-11s15 4 16 11" fill="#ffcf28"/><path d="M16 22c0-6 5-11 10-12v12Z" fill="#1764de" stroke="none"/><path d="M38 10c5 1 10 6 10 12H38Z" fill="#20bc4b" stroke="none"/>
+<rect x="8" y="20" width="48" height="42" rx="12" fill="url(#body)" stroke-width="2.5"/>
+<path d="M10 27c4-5 10-7 20-7s16 2 24 7" fill="none" stroke="#ffd976" stroke-width="2"/>
+<circle cx="22" cy="35" r="6" fill="#fffaf0" stroke-width="1.6"/><circle cx="42" cy="35" r="6" fill="#fffaf0" stroke-width="1.6"/>
+<circle cx="23" cy="36" r="3" fill="#21140e" stroke="none"/><circle cx="43" cy="36" r="3" fill="#21140e" stroke="none"/>
+<circle cx="24" cy="35" r="1" fill="#fff" stroke="none"/><circle cx="44" cy="35" r="1" fill="#fff" stroke="none"/>
+<path d="M25 43q7 8 14 0" fill="none" stroke="#21140e" stroke-width="2.5" stroke-linecap="round"/>
+<rect x="17" y="49" width="30" height="10" rx="2" fill="#fffaf0" stroke-width="1.5"/>
+<path d="M20 51h4v4h-4zm1 1v2h2v-2zm7-1h2v2h-2zm4 0h2v4h-2zm5 0h7v2h-2v2h-2v-2h-3zM20 56h3v2h-3zm5-1h2v3h-2zm5 1h3v2h-3zm5-1h2v3h-2zm5 1h4v2h-4z" fill="#21140e" stroke="none"/>
+</g></svg></div><div class="wordmark">GYROCLOPTER</div></div><div class="status"><i class="dot" id="status-dot"></i><span id="status-text">DISCONNECTED</span></div></header>
 <section class="settings"><div class="setting"><div class="row"><label for="scroll-sens">SCROLL SENSITIVITY</label><output class="value" id="scroll-val">5</output></div><input id="scroll-sens" type="range" min="1" max="10" value="5"></div><div class="setting"><div class="row"><label for="pointer-sens">POINTER SENSITIVITY</label><output class="value" id="pointer-val">10</output></div><input id="pointer-sens" type="range" min="1" max="25" value="10"><div class="guard"><span>JITTER GUARD</span><button data-guard="low" aria-pressed="false" aria-label="Low jitter guard">LOW</button><button data-guard="balanced" aria-pressed="true" aria-label="Balanced jitter guard">MID</button><button data-guard="high" aria-pressed="false" aria-label="High jitter guard">HIGH</button></div></div></section>
 <section class="playfield" id="playfield" aria-label="Gesture area. Swipe vertically to scroll."><button class="key" id="right-click" aria-label="Right click"><span>R</span></button><button class="key" id="left-click" aria-label="Left click"><span>L</span></button></section>
 <button class="connect" id="connect"><i class="dot" id="connect-dot"></i><span id="connect-label">CONNECT</span></button>
