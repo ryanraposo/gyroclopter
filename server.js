@@ -295,6 +295,13 @@ class LinuxMouseController {
         const parts = cmd.split(' ');
         const type = parts[0];
         const exec = require('child_process').exec;
+        const run = (command) => {
+            try {
+                exec(command, (err) => { if (err) console.error('Mouse command error', err.message); });
+            } catch (err) {
+                console.error('Mouse command error', err.message);
+            }
+        };
 
         if (type === 'MOVE') {
             const dx = parts[1];
@@ -302,15 +309,15 @@ class LinuxMouseController {
             const command = this.cmd === 'xdotool'
                 ? `xdotool mousemove_relative --sync ${dx} ${dy}`
                 : `ydotool mousemove -r -- ${dx} ${dy}`;
-            exec(command, (err) => { if (err) console.error('Mouse move error', err); });
+            run(command);
 
         } else if (type === 'LEFT_DOWN') {
             const command = this.cmd === 'xdotool' ? 'xdotool mousedown 1' : 'ydotool click 0x40';
-            exec(command);
+            run(command);
 
         } else if (type === 'LEFT_UP') {
             const command = this.cmd === 'xdotool' ? 'xdotool mouseup 1' : 'ydotool click 0x80';
-            exec(command);
+            run(command);
 
         } else if (type === 'CLICK_RIGHT') {
             const command = this.cmd === 'xdotool' ? 'xdotool click 3' : 'ydotool click 0xC1';
