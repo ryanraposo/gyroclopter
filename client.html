@@ -9,7 +9,7 @@ body{height:100dvh;overflow:hidden;background:#eadcc8;color:var(--ink);font-fami
 header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0 12px}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
 .logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center}
-.logo svg{width:52px;height:52px}
+.logo img{width:52px;height:52px;object-fit:contain;border-radius:12px}
 .wordmark{font-weight:1000;font-size:clamp(18px,5vw,24px);line-height:.95;letter-spacing:.08em}
 .wordmark span{display:block}
 .status{display:flex;align-items:center;gap:7px;font-size:9px;font-weight:900;letter-spacing:.12em;white-space:nowrap}
@@ -39,10 +39,10 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:15px;height:15px;m
 #modal h2{font-size:22px;margin-bottom:12px}#modal p{color:var(--muted);line-height:1.5;margin-bottom:24px}
 .primary{border:2px solid var(--line);border-radius:999px;background:linear-gradient(#ffc64a,#ff8507);color:var(--ink);padding:15px 25px;font-weight:950;letter-spacing:.08em}
 .hidden{display:none!important}button{font:inherit;cursor:pointer}button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
-@media(max-height:700px){header{padding:2px 0 7px}.logo,.logo svg{width:42px;height:42px}.logo{flex-basis:42px}.settings{gap:4px}.setting{padding:5px 9px 4px}.playfield{min-height:65px}.key{min-height:90px}.connect{flex-basis:42px;height:42px}.guard{padding-top:5px}}
+@media(max-height:700px){header{padding:2px 0 7px}.logo,.logo img{width:42px;height:42px}.logo{flex-basis:42px}.settings{gap:4px}.setting{padding:5px 9px 4px}.playfield{min-height:65px}.key{min-height:90px}.connect{flex-basis:42px;height:42px}.guard{padding-top:5px}}
 </style></head><body>
 <main class="app">
-<header><div class="brand"><div class="logo"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M2 11h21l9 8L2 25z" fill="#ef2d20" stroke="#32170d" stroke-width="2"/><path d="M62 11H41l-9 8 30 6z" fill="#16b942" stroke="#32170d" stroke-width="2"/><path d="M2 11h12l13 9H2z" fill="#1260db"/><path d="M62 11H50l-13 9h25z" fill="#1260db"/><rect x="27" y="4" width="10" height="18" rx="5" fill="#ffc928" stroke="#32170d" stroke-width="2"/><rect x="9" y="20" width="46" height="42" rx="13" fill="#ff8a08" stroke="#32170d" stroke-width="3"/><circle cx="22" cy="38" r="4" fill="#160e09"/><circle cx="42" cy="38" r="4" fill="#160e09"/><path d="M22 48q10 10 20 0" fill="none" stroke="#160e09" stroke-width="3" stroke-linecap="round"/></svg></div><div class="wordmark"><span>GYRO</span><span>CLOPTER</span></div></div><div class="status"><i class="dot" id="status-dot"></i><span id="status-text">DISCONNECTED</span></div></header>
+<header><div class="brand"><div class="logo"><img src="/favicon.png" alt="Gyroclopter mascot"></div><div class="wordmark"><span>GYRO</span><span>CLOPTER</span></div></div><div class="status"><i class="dot" id="status-dot"></i><span id="status-text">DISCONNECTED</span></div></header>
 <section class="settings"><div class="setting"><div class="row"><label for="scroll-sens">SCROLL SENSITIVITY</label><output class="value" id="scroll-val">5</output></div><input id="scroll-sens" type="range" min="1" max="10" value="5"></div><div class="setting"><div class="row"><label for="pointer-sens">POINTER SENSITIVITY</label><output class="value" id="pointer-val">10</output></div><input id="pointer-sens" type="range" min="1" max="25" value="10"><div class="guard"><span>JITTER GUARD</span><button data-guard="low" aria-pressed="false" aria-label="Low jitter guard">LOW</button><button data-guard="balanced" aria-pressed="true" aria-label="Balanced jitter guard">MID</button><button data-guard="high" aria-pressed="false" aria-label="High jitter guard">HIGH</button></div></div></section>
 <section class="playfield" id="playfield" aria-label="Swipe vertically anywhere here to scroll"><div class="swipehint" id="swipehint">SWIPE UP OR DOWN TO SCROLL</div><button class="key" id="right-click" aria-label="Right click"><span>R</span></button><button class="key" id="left-click" aria-label="Left click"><span>L</span></button></section>
 <button class="connect" id="connect"><i class="dot" id="connect-dot"></i><span id="connect-label">CONNECT</span></button>
