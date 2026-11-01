@@ -471,16 +471,16 @@ async function main() {
         let connectedCount = 0;
 
         const server = https.createServer(certificates, (req, res) => {
-            // Serve the multi-resolution app icon and PNG fallback.
-            if (req.url === '/favicon.ico' || req.url === '/favicon.png') {
-                const isIco = req.url === '/favicon.ico';
-                const iconPath = path.join(__dirname, 'app', isIco ? 'favicon.ico' : 'favicon.png');
+            // Serve favicon.png for browser tab icon
+            if (req.url === '/favicon.png') {
+                const faviconPath = path.join(__dirname, 'app', 'favicon.png');
                 try {
-                    const iconData = fs.readFileSync(iconPath);
-                    res.writeHead(200, { 'Content-Type': isIco ? 'image/x-icon' : 'image/png' });
-                    res.end(iconData);
+                    const faviconData = fs.readFileSync(faviconPath);
+                    res.writeHead(200, { 'Content-Type': 'image/png' });
+                    res.end(faviconData);
                     return;
                 } catch (err) {
+                    // Fallback: serve empty 204 if favicon not found
                     res.writeHead(204);
                     res.end();
                     return;
