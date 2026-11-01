@@ -6,13 +6,13 @@
 body{height:100dvh;overflow:hidden;background:#eadcc8;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .app{height:100%;max-width:540px;margin:auto;display:flex;flex-direction:column;overflow:hidden;padding:calc(12px + env(safe-area-inset-top)) 18px calc(12px + env(safe-area-inset-bottom));background:radial-gradient(circle at 50% 30%,#fffdf8,var(--cream) 65%,#f3dfc6);position:relative}
 .app:before{content:"";position:absolute;inset:0 0 auto;height:5px;background:linear-gradient(90deg,var(--green) 0 18%,var(--blue) 18% 38%,var(--red) 38% 60%,#ffc928 60% 78%,var(--green) 78%)}
-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0 12px}
+header{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 0 12px}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
 .logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center}
-.logo img{width:52px;height:52px;object-fit:contain;border-radius:12px}
+.logo img{width:52px;height:52px;object-fit:contain;border-radius:12px;image-rendering:auto}
 .wordmark{font-weight:1000;font-size:clamp(18px,5vw,24px);line-height:.95;letter-spacing:.08em}
 .wordmark span{display:block}
-.status{display:flex;align-items:center;gap:7px;font-size:9px;font-weight:900;letter-spacing:.12em;white-space:nowrap}
+.status{display:flex;align-items:center;gap:6px;font-size:8px;font-weight:900;letter-spacing:.08em;white-space:nowrap}
 .dot{width:9px;height:9px;border-radius:50%;background:#e89a20;box-shadow:0 0 0 3px #e89a2024}
 .settings{display:grid;gap:7px;z-index:1}
 .setting{padding:8px 11px 7px;border:1.5px solid var(--line);border-radius:13px;background:linear-gradient(110deg,#fffdf7,#f6ead8);box-shadow:0 2px 0 #dfc7a7}
@@ -41,7 +41,7 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:15px;height:15px;m
 @media(max-height:700px){header{padding:2px 0 7px}.logo,.logo img{width:42px;height:42px}.logo{flex-basis:42px}.settings{gap:4px}.setting{padding:5px 9px 4px}.playfield{min-height:65px}.key{min-height:90px}.connect{flex-basis:42px;height:42px}.guard{padding-top:5px}}
 </style></head><body>
 <main class="app">
-<header><div class="brand"><div class="logo"><img src="/favicon.png" alt="Gyroclopter mascot"></div><div class="wordmark"><span>GYRO</span><span>CLOPTER</span></div></div><div class="status"><i class="dot" id="status-dot"></i><span id="status-text">DISCONNECTED</span></div></header>
+<header><div class="brand"><div class="logo"><img src="/favicon.ico" alt="Gyroclopter mascot"></div><div class="wordmark">GYROCLOPTER</div></div><div class="status"><i class="dot" id="status-dot"></i><span id="status-text">DISCONNECTED</span></div></header>
 <section class="settings"><div class="setting"><div class="row"><label for="scroll-sens">SCROLL SENSITIVITY</label><output class="value" id="scroll-val">5</output></div><input id="scroll-sens" type="range" min="1" max="10" value="5"></div><div class="setting"><div class="row"><label for="pointer-sens">POINTER SENSITIVITY</label><output class="value" id="pointer-val">10</output></div><input id="pointer-sens" type="range" min="1" max="25" value="10"><div class="guard"><span>JITTER GUARD</span><button data-guard="low" aria-pressed="false" aria-label="Low jitter guard">LOW</button><button data-guard="balanced" aria-pressed="true" aria-label="Balanced jitter guard">MID</button><button data-guard="high" aria-pressed="false" aria-label="High jitter guard">HIGH</button></div></div></section>
 <section class="playfield" id="playfield" aria-label="Gesture area. Swipe vertically to scroll."><button class="key" id="right-click" aria-label="Right click"><span>R</span></button><button class="key" id="left-click" aria-label="Left click"><span>L</span></button></section>
 <button class="connect" id="connect"><i class="dot" id="connect-dot"></i><span id="connect-label">CONNECT</span></button>
