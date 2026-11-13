@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
   int trusted = AXIsProcessTrustedWithOptions(options);
   CFRelease(options);
   if (!trusted) {
-    fprintf(stderr, "ACCESSIBILITY_REQUIRED: macOS has not granted Accessibility to the native mouse helper (%s). In System Settings > Privacy & Security > Accessibility, add/enable this helper as well as Gyroclopter.app, then fully quit and reopen Gyroclopter.\\n", argv[0]);
+    fprintf(stderr, "ACCESSIBILITY_REQUIRED: macOS has not granted Accessibility to the native mouse helper (%s). In System Settings > Privacy & Security > Accessibility, add/enable this helper as well as Gyroclopter.app, then fully quit and reopen Gyroclopter.\n", argv[0]);
     return 2;
   }
 
