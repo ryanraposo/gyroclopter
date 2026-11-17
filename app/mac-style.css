@@ -37,7 +37,7 @@ body.macos .mac-rotor-assembly {
 }
 
 body.macos.server-running .mac-rotor-assembly {
-  transform: perspective(1100px) rotateX(48deg);
+  transform: perspective(1100px) rotateX(62deg);
 }
 
 body.macos .mac-rotor,
@@ -60,16 +60,15 @@ body.macos .rotor-echo {
    is the only blade image visible when the server is stopped. */
 body.macos .rotor-echo {
   opacity: 0;
-  filter: blur(1.4px);
+  filter: blur(0.7px);
   animation-delay: -0.045s;
   transition: opacity 260ms ease-out;
 }
 
 body.macos .rotor-echo-2 { animation-delay: -0.09s; }
 
-body.macos.server-running .mac-rotor { filter: blur(0.4px); }
-body.macos.server-running .rotor-echo { opacity: 0.3; }
-body.macos.server-running .rotor-echo-2 { opacity: 0.16; }
+body.macos.server-running .rotor-echo { opacity: 0.2; }
+body.macos.server-running .rotor-echo-2 { opacity: 0.1; }
 
 body.macos.server-running .mac-rotor,
 body.macos.server-running .rotor-echo { animation-play-state: running; }
