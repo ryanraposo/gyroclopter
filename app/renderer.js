@@ -38,6 +38,8 @@ if (document.body.classList.contains('macos')) {
 
 function setStatus(running) {
   STATE.running = running;
+  document.body.classList.toggle('server-running', running);
+  if (!running) document.body.classList.remove('device-connected');
   STATE.togglePending = false;
   els.statusDot.className = 'status-dot ' + (running ? 'running' : 'stopped');
   els.statusText.textContent = running ? 'Running' : 'Stopped';
@@ -54,6 +56,7 @@ function setStatus(running) {
 
 function setConnectedCount(count) {
   STATE.connectedCount = count;
+  document.body.classList.toggle('device-connected', count > 0);
   els.connectedCount.textContent = count > 0 ? count + ' device' + (count !== 1 ? 's' : '') + ' connected' : '';
 }
 

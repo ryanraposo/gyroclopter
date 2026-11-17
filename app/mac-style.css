@@ -15,7 +15,8 @@ body.macos {
 body.macos .mac-only { display: block; }
 body.macos li.mac-only { display: list-item; }
 
-body.macos .mac-character {
+body.macos .mac-character,
+body.macos .mac-rotor {
   position: absolute;
   inset: 0 auto auto 0;
   width: 720px;
@@ -24,6 +25,27 @@ body.macos .mac-character {
   user-select: none;
   -webkit-user-drag: none;
   -webkit-app-region: drag;
+}
+
+/* Rotor blades live on their own transparent layer so they can spin around
+   the hub at (424.5, 176) in the 1254px source art = 33.85% / 14.03%. */
+body.macos .mac-rotor {
+  pointer-events: none;
+  transform-origin: 33.85% 14.03%;
+  animation: rotor-spin 1.4s linear infinite;
+  animation-play-state: paused;
+}
+
+body.macos.server-running .mac-rotor { animation-play-state: running; }
+body.macos.device-connected .mac-rotor { animation-duration: 0.45s; }
+
+@keyframes rotor-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.macos .mac-rotor { animation: none; }
 }
 
 body.macos .qr-section {
