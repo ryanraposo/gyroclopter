@@ -36,8 +36,10 @@ body.macos .mac-rotor-assembly {
   transition: transform 260ms ease-out;
 }
 
+/* Tilt around the phone's own -17deg horizontal axis, not the screen's:
+   Rz(theta) . Rx(tilt) . Rz(-theta), with theta = -17deg from the artwork. */
 body.macos.server-running .mac-rotor-assembly {
-  transform: perspective(1100px) rotateX(70deg);
+  transform: perspective(1100px) rotateZ(-17deg) rotateX(70deg) rotateZ(17deg);
 }
 
 body.macos .mac-rotor,

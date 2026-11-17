@@ -66,13 +66,15 @@ test('depth warp tilts the rotor plane and trails the blades while running', asy
   await expect.poll(() =>
     assembly.evaluate(el => getComputedStyle(el).transform)
   ).toContain('matrix3d');
-  const readWarp = () => assembly.evaluate(el => {
-    const nums = getComputedStyle(el).transform.match(/-?[\d.]+/g).map(Number);
-    return nums[6]; // matrix3d m22: vertical scale of the tilted rotation plane
-  });
-  await expect.poll(readWarp).toBeLessThan(0.4); // wait out the 260ms tilt transition
-  const warp = await readWarp();
-  expect(warp).toBeGreaterThan(0.3);
+  const readMatrix = () => assembly.evaluate(el =>
+    getComputedStyle(el).transform.match(/-?[\d.]+/g).map(Number)
+  );
+  await expect.poll(async () => (await readMatrix()).length).toBe(17); // matrix3d
+  await page.waitForTimeout(350); // let the 260ms tilt transition settle
+  const m = await readMatrix();
+  expect(m[6]).toBeGreaterThan(0.3);            // vertical compression
+  expect(m[2]).toBeLessThan(-0.12);             // tilt axis follows the phone's -17deg body angle
+  expect(m[2]).toBeGreaterThan(-0.25);
   await expect.poll(() =>
     echoes.first().evaluate(el => parseFloat(getComputedStyle(el).opacity))
   ).toBeGreaterThan(0.15);
