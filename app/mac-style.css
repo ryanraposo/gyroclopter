@@ -16,7 +16,7 @@ body.macos .mac-only { display: block; }
 body.macos li.mac-only { display: list-item; }
 
 body.macos .mac-character,
-body.macos .mac-rotor {
+body.macos .mac-rotor-assembly {
   position: absolute;
   inset: 0 auto auto 0;
   width: 720px;
@@ -27,25 +27,73 @@ body.macos .mac-rotor {
   -webkit-app-region: drag;
 }
 
-/* Rotor blades live on their own transparent layer so they can spin around
-   the hub at (424.5, 176) in the 1254px source art = 33.85% / 14.03%. */
-body.macos .mac-rotor {
+/* The blades live on their own transparent layers so the rotation plane can
+   be tilted away from the camera. Hub at (424.5, 176) in the 1254px source
+   art = 33.85% / 14.03% on the equally sized displayed layers. */
+body.macos .mac-rotor-assembly {
+  pointer-events: none;
+  transform-origin: 33.85% 14.03%;
+  transition: transform 260ms ease-out;
+}
+
+body.macos.server-running .mac-rotor-assembly {
+  transform: perspective(1100px) rotateX(48deg);
+}
+
+body.macos .mac-rotor,
+body.macos .rotor-echo {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 720px;
+  height: 720px;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
   pointer-events: none;
   transform-origin: 33.85% 14.03%;
   animation: rotor-spin 1.4s linear infinite;
   animation-play-state: paused;
+  will-change: transform;
 }
 
-body.macos.server-running .mac-rotor { animation-play-state: running; }
-body.macos.device-connected .mac-rotor { animation-duration: 0.45s; }
+/* Lagging copies read as motion blur; hidden at rest so the baked 0deg pose
+   is the only blade image visible when the server is stopped. */
+body.macos .rotor-echo {
+  opacity: 0;
+  filter: blur(1.4px);
+  animation-delay: -0.045s;
+  transition: opacity 260ms ease-out;
+}
 
+body.macos .rotor-echo-2 { animation-delay: -0.09s; }
+
+body.macos.server-running .mac-rotor { filter: blur(0.4px); }
+body.macos.server-running .rotor-echo { opacity: 0.3; }
+body.macos.server-running .rotor-echo-2 { opacity: 0.16; }
+
+body.macos.server-running .mac-rotor,
+body.macos.server-running .rotor-echo { animation-play-state: running; }
+
+body.macos.device-connected .mac-rotor,
+body.macos.device-connected .rotor-echo { animation-duration: 0.45s; }
+
+body.macos.device-connected .rotor-echo { animation-delay: -0.02s; }
+body.macos.device-connected .rotor-echo-2 { animation-delay: -0.04s; }
+
+/* Slight flex as each blade sweeps through the near and far side. */
 @keyframes rotor-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  0%   { transform: rotateZ(0deg)   skewX(0deg); }
+  25%  { transform: rotateZ(90deg)  skewX(1.5deg); }
+  50%  { transform: rotateZ(180deg) skewX(0deg); }
+  75%  { transform: rotateZ(270deg) skewX(-1.5deg); }
+  100% { transform: rotateZ(360deg) skewX(0deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body.macos .mac-rotor { animation: none; }
+  body.macos .mac-rotor,
+  body.macos .rotor-echo { animation: none; }
+  body.macos .mac-rotor-assembly,
+  body.macos .rotor-echo { transition: none; }
 }
 
 body.macos .qr-section {

@@ -54,6 +54,35 @@ test('rotor spins while the server runs and speeds up on a connection', async ({
   expect(await rotorStyle(page, 'animationDuration')).toBe('1.4s');
 });
 
+test('depth warp tilts the rotor plane and trails the blades while running', async ({ page }) => {
+  await openMacUI(page);
+  const assembly = page.locator('.mac-rotor-assembly');
+  const echoes = page.locator('.rotor-echo');
+
+  expect(await assembly.evaluate(el => getComputedStyle(el).transform)).toBe('none');
+  expect(await echoes.first().evaluate(el => getComputedStyle(el).opacity)).toBe('0');
+
+  await page.evaluate(() => setStatus(true));
+  await expect.poll(() =>
+    assembly.evaluate(el => getComputedStyle(el).transform)
+  ).toContain('matrix3d');
+  await expect.poll(() =>
+    echoes.first().evaluate(el => parseFloat(getComputedStyle(el).opacity))
+  ).toBeGreaterThan(0.2);
+  const delays = await echoes.evaluateAll(els =>
+    els.map(el => getComputedStyle(el).animationDelay)
+  );
+  expect(delays).toEqual(['-0.045s', '-0.09s']);
+
+  await page.evaluate(() => setStatus(false));
+  await expect.poll(() =>
+    echoes.first().evaluate(el => parseFloat(getComputedStyle(el).opacity))
+  ).toBe(0);
+  await expect.poll(() =>
+    assembly.evaluate(el => getComputedStyle(el).transform)
+  ).toBe('none');
+});
+
 test('reduced-motion users see a static rotor', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await openMacUI(page);
