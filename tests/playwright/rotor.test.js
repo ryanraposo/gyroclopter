@@ -70,9 +70,9 @@ test('depth warp tilts the rotor plane and trails the blades while running', asy
     const nums = getComputedStyle(el).transform.match(/-?[\d.]+/g).map(Number);
     return nums[6]; // matrix3d m22: vertical scale of the tilted rotation plane
   });
-  await expect.poll(readWarp).toBeLessThan(0.55); // wait out the 260ms tilt transition
+  await expect.poll(readWarp).toBeLessThan(0.4); // wait out the 260ms tilt transition
   const warp = await readWarp();
-  expect(warp).toBeGreaterThan(0.4);
+  expect(warp).toBeGreaterThan(0.3);
   await expect.poll(() =>
     echoes.first().evaluate(el => parseFloat(getComputedStyle(el).opacity))
   ).toBeGreaterThan(0.15);

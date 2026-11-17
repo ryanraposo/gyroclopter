@@ -37,7 +37,7 @@ body.macos .mac-rotor-assembly {
 }
 
 body.macos.server-running .mac-rotor-assembly {
-  transform: perspective(1100px) rotateX(62deg);
+  transform: perspective(1100px) rotateX(70deg);
 }
 
 body.macos .mac-rotor,
