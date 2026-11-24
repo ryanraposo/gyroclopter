@@ -6,8 +6,15 @@
   <title>Gyroclopter</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="illustrated-window.css">
 </head>
 <body>
+  <img class="character-art illustrated-only" src="assets/gyroclopter-body.png" alt="" aria-hidden="true">
+  <div class="rotor-assembly illustrated-only" aria-hidden="true">
+    <img class="rotor" src="assets/gyroclopter-rotor.png" alt="">
+    <img class="rotor-echo" src="assets/gyroclopter-rotor.png" alt="">
+    <img class="rotor-echo rotor-echo-2" src="assets/gyroclopter-rotor.png" alt="">
+  </div>
   <div class="card qr-section">
     <div id="qr-canvas">
       <span id="qr-placeholder">Start the server to see the pairing QR code</span>
@@ -15,7 +22,7 @@
     <div id="url-display"></div>
   </div>
 
-  <div class="card">
+  <div class="card controls-section">
     <div class="status-row">
       <div>
         <span class="status-dot stopped" id="status-dot"></span>
@@ -26,17 +33,19 @@
     <button class="btn btn-start" id="btn-toggle">Start Server</button>
   </div>
 
-  <div class="card instructions">
+  <div class="card instructions" id="instructions">
     <ol>
       <li>Connect your phone to the same Wi‑Fi network</li>
       <li>Scan the QR code or enter the URL manually</li>
       <li>Accept the self‑signed certificate warning</li>
       <li>Grant motion permission when prompted</li>
-      <li>Tap <strong>Calibrate</strong> while pointing at the cursor</li>
+      <li class="mac-only">Allow Accessibility access in System Settings</li>
+      <li>Tap <strong>Connect</strong> and tilt your phone to move the pointer</li>
     </ol>
   </div>
 
-  <div class="footer">v0.5.0</div>
+  <button class="illustrated-help illustrated-only" id="btn-help" type="button" aria-controls="instructions" aria-expanded="false">How to fly?</button>
+  <div class="footer">v0.6.0</div>
 
   <script src="renderer.js"></script>
 </body>

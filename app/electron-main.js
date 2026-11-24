@@ -2,8 +2,10 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const { createInterface } = require('readline');
 const os = require('os');
 const { networkInterfaces } = require('os');
+const { gyroclopterEdition } = require('../package.json');
 
 const STATE = {
   serverPid: null,
@@ -11,22 +13,28 @@ const STATE = {
   connectedCount: 0,
   tray: null,
   stopping: false,
-  starting: false
+  starting: false,
+  quitting: false
 };
 
 let mainWindow;
 
 function createWindow() {
+  const isMac = process.platform === 'darwin';
+  const illustrated = isMac || process.platform === 'linux' || gyroclopterEdition === 'store';
   mainWindow = new BrowserWindow({
     title: 'Gyroclopter',
-    icon: path.join(__dirname, 'favicon.ico'),
-    width: 420,
-    height: 700,
+    icon: path.join(__dirname, process.platform === 'win32' ? 'favicon.ico' : 'favicon.png'),
+    width: illustrated ? 532 : 420,
+    height: illustrated ? 560 : 700,
+    useContentSize: illustrated,
+    ...(isMac ? { transparent: true, titleBarStyle: 'hiddenInset', backgroundColor: '#00000000', hasShadow: false } : {}),
     resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      additionalArguments: illustrated ? ['--illustrated-window'] : []
     }
   });
 
@@ -35,7 +43,7 @@ function createWindow() {
 
   // Minimize to tray on close
   mainWindow.on('close', (event) => {
-    if (process.appClosing) {
+    if (STATE.quitting) {
       return;
     }
     event.preventDefault();
@@ -59,7 +67,7 @@ function getServerPath() {
 }
 
 async function startServer() {
-  if (STATE.running || STATE.starting || STATE.stopping) {
+  if (STATE.quitting || STATE.running || STATE.starting || STATE.stopping) {
     console.log('Skipping start - server is running:', STATE.running, ', starting:', STATE.starting, ', stopping:', STATE.stopping);
     return;
   }
@@ -77,7 +85,8 @@ async function startServer() {
     const serverProcess = spawn(process.execPath, [
       serverPath
     ], {
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
       env: {
         ...process.env,
         ELECTRON_RUN_AS_NODE: '1'  // Run as Node.js with asar support
@@ -87,36 +96,32 @@ async function startServer() {
     STATE.serverProcess = serverProcess;
     STATE.running = true;
     
-    serverProcess.stdout.on('data', (data) => {
-      const lines = data.toString().split('\n').filter(Boolean);
-      for (const line of lines) {
-        try {
-          const msg = JSON.parse(line);
-          if (mainWindow) {
-            mainWindow.webContents.send('server-event', msg);
-          }
-          switch (msg.event) {
-            case 'started':
-              STATE.running = true;
-              STATE.starting = false;
-              break;
-            case 'connection':
-            case 'disconnection':
-              STATE.connectedCount = msg.count;
-              break;
-          }
-        } catch (_) {
-          // Ignore non-JSON lines
-        }
+    const statusLines = createInterface({ input: serverProcess.stdout });
+    statusLines.on('line', (line) => {
+      let msg;
+      try {
+        msg = JSON.parse(line);
+      } catch (_) {
+        return;
       }
+      if (msg.event === 'started') {
+        STATE.running = true;
+        STATE.starting = false;
+      } else if (msg.event === 'connection' || msg.event === 'disconnection') {
+        STATE.connectedCount = msg.count;
+      }
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('server-event', msg);
     });
-    
+    serverProcess.stdin.on('error', (err) => {
+      console.error('Server control pipe:', err.message);
+    });
+
     serverProcess.on('error', (err) => {
       console.error('Server process error:', err);
       STATE.running = false;
       STATE.starting = false;
       STATE.serverProcess = null;
-      if (mainWindow) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('server-event', { event: 'error', message: err.message });
       }
     });
@@ -124,19 +129,19 @@ async function startServer() {
     serverProcess.stderr.on('data', (data) => {
       const stderr = data.toString();
       console.error('Server stderr:', stderr);
-      if (mainWindow) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('server-event', { event: 'stderr', data: stderr });
       }
     });
     
-    serverProcess.on('exit', (code) => {
+    serverProcess.on('close', (code) => {
       console.log('Server process exited with code:', code);
       STATE.running = false;
       STATE.stopping = false;
       STATE.starting = false;
       STATE.serverProcess = null;
       STATE.serverPid = null;
-      if (mainWindow) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('server-exit');
         mainWindow.webContents.send('server-event', { event: 'stopped' });
       }
@@ -148,7 +153,7 @@ async function startServer() {
     console.error('Failed to start server', err);
     STATE.starting = false;
     STATE.running = false;
-    if (mainWindow) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('server-event', { 
         event: 'error', 
         message: err.message 
@@ -166,20 +171,13 @@ function stopServer() {
   if (STATE.serverProcess) {
     console.log('Stopping server process (PID:', STATE.serverProcess.pid, ')...');
     STATE.stopping = true;
-    STATE.serverProcess.kill('SIGTERM');
-    
-    // Force kill after 2 seconds if still running
-    setTimeout(() => {
-      if (STATE.serverProcess && STATE.serverProcess.pid) {
-        try {
-          process.kill(STATE.serverProcess.pid, 'SIGKILL');
-          console.log('Force killed server process');
-        } catch (e) {
-          // Process already dead
-        }
-      }
-    }, 2000);
-    // Don't set STATE.serverProcess to null here - let the exit handler do it
+    const serverProcess = STATE.serverProcess;
+    serverProcess.stdin.end();
+    // Windows terminates the child immediately on a signal. Give EOF a chance
+    // to release any held input and close sockets on all platforms.
+    const timeout = setTimeout(() => serverProcess.kill('SIGKILL'), 3000);
+    timeout.unref();
+    serverProcess.once('close', () => clearTimeout(timeout));
   } else {
     console.log('No server process to stop');
     STATE.stopping = false;
@@ -211,11 +209,7 @@ function updateTrayMenu() {
     { type: 'separator' },
     {
       label: 'Quit',
-      click: () => {
-        if (STATE.running) stopServer();
-        process.appClosing = true;
-        app.quit();
-      }
+      click: () => app.quit()
     }
   ]);
   
@@ -225,14 +219,12 @@ function updateTrayMenu() {
 }
 
 function createTray() {
-  // On Windows, use ICO format for best tray icon support
-  // On Linux, use PNG from the icons directory
-  const iconPath = process.platform === 'win32' 
-    ? path.join(__dirname, '..', 'build', 'icon.ico')
-    : path.join(__dirname, '..', 'build', 'icons', '16x16.png');
-  const trayIcon = nativeImage.createFromPath(iconPath);
-  
+  const isWindows = process.platform === 'win32';
+  const iconPath = path.join(__dirname, isWindows ? 'favicon.ico' : 'favicon.png');
+  const source = nativeImage.createFromPath(iconPath);
+  const trayIcon = isWindows ? source : source.resize({ width: 18, height: 18 });
   STATE.tray = new Tray(trayIcon);
+  STATE.tray.setToolTip('Gyroclopter');
   updateTrayMenu();
   
   STATE.tray.on('click', () => {
@@ -266,7 +258,7 @@ app.whenReady().then(() => {
 app.on('second-instance', (event, commandLine, workingDirectory) => {
   // Another instance tried to start - focus our window instead
   console.log('Second instance detected, focusing existing window');
-  if (mainWindow) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
     mainWindow.show();
@@ -278,12 +270,16 @@ app.on('window-all-closed', (event) => {
   // Keep app running in tray
 });
 
-app.on('will-quit', () => {
-  stopServer();
+app.on('before-quit', () => {
+  STATE.quitting = true;
+  if (STATE.serverProcess) stopServer();
 });
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+  } else if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
   }
 });

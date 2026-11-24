@@ -47,9 +47,11 @@ const { spawn } = require('child_process');
 const WebSocket = require('ws');
 const QRCode = require('qrcode');
 const selfsigned = require('selfsigned');
+const { createInputController } = require('./input');
+const { dispatchInputMessage } = require('./input/commands');
 
 const CONFIG = {
-    PORT: 8443,
+    PORT: process.env.PORT === undefined ? 8443 : Number(process.env.PORT),
     APP_DIR: path.join(os.tmpdir(), 'gyroclopter'),
     MOUSE_SENSITIVITY_MULTIPLIER: 1.2
 };
@@ -74,6 +76,7 @@ function initLogFile() {
     const logPath = path.join(logDir, 'gyroclopter.log');
     try {
         logStream = fs.createWriteStream(logPath, { flags: 'a' });
+        logStream.on('error', () => { logStream = null; });
         // Also symlink to /tmp for easy access
         const tmpLog = path.join(os.tmpdir(), 'gyroclopter.log');
         try { fs.unlinkSync(tmpLog); } catch (_) {}
@@ -129,238 +132,11 @@ async function getCertificates() {
 }
 
 /**
- * Windows-specific mouse controller using PowerShell and P/Invoke.
+ * Platform-specific input lives under input/.
  *
- * The script is written to a temporary .ps1 file and executed with
- * `-File` so PowerShell keeps stdin open for the command loop. The
- * script announces "READY" on stdout once the P/Invoke type is loaded
- * and the command loop is running; commands are only forwarded after
- * that signal arrives to avoid losing them during startup.
+ * server.js owns transport and protocol lifecycle only. Backends receive the
+ * stable command vocabulary: MOVE, LEFT_DOWN, LEFT_UP, CLICK_RIGHT, SCROLL.
  */
-class WindowsMouseController {
-    constructor() {
-        this.process = null;
-        this.ready = false;
-        this.queue = [];
-        this.scriptPath = null;
-        if (os.platform() === 'win32') {
-            this.init();
-        }
-    }
-
-    buildScript() {
-        return [
-            '$ErrorActionPreference = \'Stop\'',
-            'try {',
-            '  Add-Type -Namespace Gyroclopter -Name WinMouse -MemberDefinition @\'',
-            '[DllImport("user32.dll")]',
-            'public static extern void mouse_event(int dwFlags, int dx, int dy, int dwData, int dwExtraInfo);',
-            '\'@',
-            '  [Console]::Out.WriteLine("READY")',
-            '  [Console]::Out.Flush()',
-            '  while ($true) {',
-            '    $line = [Console]::In.ReadLine()',
-            '    if ($null -eq $line) { break }',
-            '    if ($line -eq \'exit\') { break }',
-            '    try {',
-            '      $parts = $line -split \' \'',
-            '      switch ($parts[0]) {',
-            '        \'MOVE\'        { [Gyroclopter.WinMouse]::mouse_event(0x0001, [int]$parts[1], [int]$parts[2], 0, 0) }',
-            '        \'LEFT_DOWN\'   { [Gyroclopter.WinMouse]::mouse_event(0x0002, 0, 0, 0, 0) }',
-            '        \'LEFT_UP\'     { [Gyroclopter.WinMouse]::mouse_event(0x0004, 0, 0, 0, 0) }',
-            '        \'CLICK_RIGHT\' { [Gyroclopter.WinMouse]::mouse_event(0x0008 -bor 0x0010, 0, 0, 0, 0) }',
-            '        \'SCROLL\'      { [Gyroclopter.WinMouse]::mouse_event(0x0800, 0, 0, [int]$parts[1], 0) }',
-            '      }',
-            '    } catch {',
-            '      [Console]::Error.WriteLine(("ERR " + $_.Exception.Message))',
-            '    }',
-            '  }',
-            '} catch {',
-            '  [Console]::Error.WriteLine(("STARTUP_ERR " + $_.Exception.Message))',
-            '  exit 1',
-            '}',
-            ''
-        ].join('\r\n');
-    }
-
-    init() {
-        try {
-            const script = this.buildScript();
-            this.scriptPath = path.join(os.tmpdir(), `gyroclopter-mouse-${process.pid}.ps1`);
-            fs.writeFileSync(this.scriptPath, script, 'utf8');
-        } catch (err) {
-            console.error('Failed to write Windows Mouse Controller script:', err);
-            return;
-        }
-
-        this.process = spawn('powershell.exe', [
-            '-NoProfile',
-            '-ExecutionPolicy', 'Bypass',
-            '-File', this.scriptPath
-        ], {
-            stdio: ['pipe', 'pipe', 'pipe'],
-            windowsHide: true
-        });
-
-        this.process.on('error', (err) => {
-            console.error('Failed to start Windows Mouse Controller:', err);
-            this.ready = false;
-        });
-
-        this.process.stderr.on('data', (chunk) => {
-            const msg = chunk.toString();
-            if (msg.startsWith('STARTUP_ERR')) {
-                console.error('Windows Mouse Controller startup failed:', msg);
-                this.ready = false;
-            } else if (msg.startsWith('ERR ')) {
-                console.error('Windows Mouse Controller command error:', msg);
-            }
-        });
-
-        this.process.on('exit', (code, signal) => {
-            this.ready = false;
-            this.process = null;
-        });
-
-        let stdoutBuffer = '';
-        this.process.stdout.on('data', (chunk) => {
-            stdoutBuffer += chunk.toString();
-            let idx;
-            while ((idx = stdoutBuffer.indexOf('\n')) !== -1) {
-                const line = stdoutBuffer.slice(0, idx).trim();
-                stdoutBuffer = stdoutBuffer.slice(idx + 1);
-                if (line === 'READY') {
-                    this.ready = true;
-                    const pending = this.queue;
-                    this.queue = [];
-                    for (const cmd of pending) {
-                        this.sendCommand(cmd);
-                    }
-                }
-            }
-        });
-    }
-
-    sendCommand(cmd) {
-        if (!this.process || !this.process.stdin || !this.process.stdin.writable) {
-            return;
-        }
-        if (!this.ready) {
-            this.queue.push(cmd);
-            if (this.queue.length > 256) {
-                this.queue.shift();
-            }
-            return;
-        }
-        this.process.stdin.write(cmd + '\n');
-    }
-
-    dispose() {
-        if (this.process) {
-            try {
-                if (this.process.stdin && this.process.stdin.writable) {
-                    this.process.stdin.write('exit\n');
-                }
-            } catch (_) { /* ignore */ }
-            try {
-                this.process.kill();
-            } catch (_) { /* ignore */ }
-            this.process = null;
-        }
-        if (this.scriptPath) {
-            try { fs.unlinkSync(this.scriptPath); } catch (_) { /* ignore */ }
-            this.scriptPath = null;
-        }
-        this.ready = false;
-        this.queue = [];
-    }
-}
-
-class LinuxMouseController {
-    constructor() {
-        const session = process.env.XDG_SESSION_TYPE || (process.env.DISPLAY ? 'x11' : 'unknown');
-        this.session = session;
-        this.cmd = null;
-        if (session === 'x11') {
-            this.cmd = 'xdotool';
-        } else if (session === 'wayland') {
-            this.cmd = 'ydotool';
-        } else {
-            console.warn('LinuxMouseController: Unknown session type, mouse control may not work');
-        }
-    }
-
-    sendCommand(cmd) {
-        if (!this.cmd) return;
-        const parts = cmd.split(' ');
-        const type = parts[0];
-        const exec = require('child_process').exec;
-        const run = (command) => {
-            try {
-                exec(command, (err) => { if (err) console.error('Mouse command error', err.message); });
-            } catch (err) {
-                console.error('Mouse command error', err.message);
-            }
-        };
-
-        if (type === 'MOVE') {
-            const dx = parts[1];
-            const dy = parts[2];
-            const command = this.cmd === 'xdotool'
-                ? `xdotool mousemove_relative --sync ${dx} ${dy}`
-                : `ydotool mousemove -r -- ${dx} ${dy}`;
-            run(command);
-
-        } else if (type === 'LEFT_DOWN') {
-            const command = this.cmd === 'xdotool' ? 'xdotool mousedown 1' : 'ydotool click 0x40';
-            run(command);
-
-        } else if (type === 'LEFT_UP') {
-            const command = this.cmd === 'xdotool' ? 'xdotool mouseup 1' : 'ydotool click 0x80';
-            run(command);
-
-        } else if (type === 'CLICK_RIGHT') {
-            const command = this.cmd === 'xdotool' ? 'xdotool click 3' : 'ydotool click 0xC1';
-            exec(command);
-
-        } else if (type === 'SCROLL') {
-            const delta = parseInt(parts[1], 10);
-            let command;
-            if (this.cmd === 'xdotool') {
-                command = delta > 0 ? 'xdotool click 4' : 'xdotool click 5';
-            } else {
-                const scrollY = delta > 0 ? -3 : 3;
-                command = `ydotool mousemove --wheel -x 0 -y ${scrollY}`;
-            }
-            exec(command);
-        }
-    }
-
-    dispose() {
-        // No persistent process
-    }
-}
-
-// Generic controller that auto-switches based on OS and session
-class GenericMouseController {
-    constructor() {
-        if (os.platform() === 'win32') {
-            this.controller = new WindowsMouseController();
-        } else {
-            this.controller = new LinuxMouseController();
-        }
-    }
-    sendCommand(cmd) {
-        if (this.controller && typeof this.controller.sendCommand === 'function') {
-            this.controller.sendCommand(cmd);
-        }
-    }
-    dispose() {
-        if (this.controller && typeof this.controller.dispose === 'function') {
-            this.controller.dispose();
-        }
-    }
-}
 
 /**
  * Finds the local IPv4 address for LAN access.
@@ -403,53 +179,13 @@ function getClientHtml() {
 }
 
 /**
- * Returns true if value is a finite number. Used to reject garbage WS payloads
- * that would otherwise become "NaN" commands piped to PowerShell/xdotool.
- */
-function isFiniteNumber(v) {
-    return typeof v === 'number' && Number.isFinite(v);
-}
-
-/**
- * Dispatches a parsed WebSocket message to the mouse controller.
+ * Dispatches a parsed WebSocket message to the active input controller.
  *
- * Validates the payload, applies the sensitivity multiplier, and translates
- * high-level message types into the controller's command strings
- * (MOVE, LEFT_DOWN, LEFT_UP, CLICK_RIGHT, SCROLL). Returns true if the
- * message produced a controller command, false if it was rejected as
- * invalid or ignored as unknown.
- *
- * Extracted from main() so the protocol contract is unit-testable
- * without spinning up a real WebSocket server.
+ * Kept as a small wrapper so the server remains compatible with the existing
+ * transport tests while the validation/translation contract lives in input/.
  */
-function handleWsMessage(data, mouse) {
-    if (!data || typeof data.type !== 'string') return false;
-
-    switch (data.type) {
-        case 'move':
-            if (!isFiniteNumber(data.dx) || !isFiniteNumber(data.dy)) return false;
-            {
-                const dx = Math.round(data.dx * CONFIG.MOUSE_SENSITIVITY_MULTIPLIER);
-                const dy = Math.round(data.dy * CONFIG.MOUSE_SENSITIVITY_MULTIPLIER);
-                mouse.sendCommand(`MOVE ${dx} ${dy}`);
-            }
-            return true;
-        case 'down':
-            mouse.sendCommand('LEFT_DOWN');
-            return true;
-        case 'up':
-            mouse.sendCommand('LEFT_UP');
-            return true;
-        case 'right':
-            mouse.sendCommand('CLICK_RIGHT');
-            return true;
-        case 'scroll':
-            if (!isFiniteNumber(data.delta)) return false;
-            mouse.sendCommand(`SCROLL ${Math.trunc(data.delta)}`);
-            return true;
-        default:
-            return false;
-    }
+function handleWsMessage(data, input) {
+    return dispatchInputMessage(data, input, CONFIG.MOUSE_SENSITIVITY_MULTIPLIER);
 }
 
 /**
@@ -463,12 +199,22 @@ function handleWsMessage(data, mouse) {
  */
 async function main() {
     try {
-        initLogFile();
         ensureAppDir();
+        initLogFile();
         const certificates = await getCertificates();
-        const mouse = new GenericMouseController();
+        const mouse = createInputController({
+            onError: (error) => emitStatus({ event: 'input_error', ...error }),
+            onAvailability: (available) => emitStatus({ event: 'input_availability', available })
+        });
 
         let connectedCount = 0;
+        let leftButtonOwner = null;
+
+        function releaseLeft(ws) {
+            if (leftButtonOwner !== ws) return;
+            leftButtonOwner = null;
+            handleWsMessage({ type: 'up' }, mouse);
+        }
 
         const server = https.createServer(certificates, (req, res) => {
             // Serve favicon.png for browser tab icon
@@ -514,25 +260,32 @@ async function main() {
             });
 
             ws.on('message', (message) => {
-                            let data;
-                            try {
-                                data = JSON.parse(message);
-                            } catch (_) {
-                                return; // Ignore malformed JSON.
-                            }
-                            handleWsMessage(data, mouse);
-                        });
+                try {
+                    const data = JSON.parse(message);
+                    if (data?.type === 'down') {
+                        if (leftButtonOwner || mouse.available === false) return;
+                        if (handleWsMessage(data, mouse)) leftButtonOwner = ws;
+                    } else if (data?.type === 'up') {
+                        releaseLeft(ws);
+                    } else if (data?.type !== 'move' || !leftButtonOwner || ws === leftButtonOwner) {
+                        handleWsMessage(data, mouse);
+                    }
+                } catch (_) {
+                    // Ignore malformed input without dropping the connection.
+                }
+            });
 
             ws.on('close', () => {
+                releaseLeft(ws);
                 connectedCount = Math.max(0, connectedCount - 1);
                 emitStatus({ event: 'disconnection', count: connectedCount });
             });
         });
 
         const localIp = getLocalIp();
-        const url = `https://${localIp}:${CONFIG.PORT}`;
-
         server.listen(CONFIG.PORT, '0.0.0.0', async () => {
+            const port = server.address().port;
+            const url = `https://${localIp}:${port}`;
             let qr = '';
             try {
                 qr = await QRCode.toDataURL(url, {
@@ -545,31 +298,34 @@ async function main() {
             emitStatus({
                 event: 'started',
                 ip: localIp,
-                port: CONFIG.PORT,
-                qr: qr
+                port,
+                qr: qr,
+                inputBackend: mouse.name || 'unknown',
+                inputAvailable: mouse.available !== false
             });
         });
 
+        let shuttingDown = false;
         const shutdown = () => {
-            const msg = 'Shutting down server...';
-            console.log(msg);
-            writeLog(msg);
-            wss.close(() => {
-                const msg2 = 'WebSocket server closed';
-                console.log(msg2);
-                writeLog(msg2);
-            });
+            if (shuttingDown) return;
+            shuttingDown = true;
+            if (leftButtonOwner) releaseLeft(leftButtonOwner);
+            mouse.dispose();
+            for (const ws of wss.clients) ws.terminate();
+            wss.close();
+            server.closeAllConnections();
             server.close(() => {
-                const msg3 = 'HTTP server closed';
-                console.log(msg3);
-                writeLog(msg3);
-                mouse.dispose();
-                process.exit(0);
+                process.stdin.pause();
+                logStream?.end();
             });
         };
 
         process.on('SIGINT', shutdown);
         process.on('SIGTERM', shutdown);
+        if (process.env.ELECTRON_RUN_AS_NODE === '1') {
+            process.stdin.on('end', shutdown);
+            process.stdin.resume();
+        }
     } catch (err) {
         // Anything thrown during startup (cert generation, etc.) reaches here
         // and is reported as a structured event before the process exits.
@@ -596,5 +352,6 @@ module.exports = {
   getCertificates,
   ensureAppDir,
   getLocalIp,
+  handleWsMessage,
   CONFIG
 };
