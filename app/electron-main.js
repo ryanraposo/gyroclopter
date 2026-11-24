@@ -19,10 +19,11 @@ const STATE = {
 let mainWindow;
 
 function createWindow() {
+  const isMac = process.platform === 'darwin';
   const illustrated = isMac || process.platform === 'linux' || gyroclopterEdition === 'store';
   mainWindow = new BrowserWindow({
     title: 'Gyroclopter',
-    icon: path.join(__dirname, 'favicon.ico'),
+    icon: path.join(__dirname, process.platform === 'win32' ? 'favicon.ico' : 'favicon.png'),
     width: illustrated ? 532 : 420,
     height: illustrated ? 560 : 700,
     useContentSize: illustrated,
