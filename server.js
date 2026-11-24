@@ -42,6 +42,7 @@ if (require.main === module && process.platform === 'win32' && !process.env.IS_C
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const { randomBytes } = require('crypto');
 const os = require('os');
 const { spawn } = require('child_process');
 const WebSocket = require('ws');
@@ -77,10 +78,11 @@ function initLogFile() {
     try {
         logStream = fs.createWriteStream(logPath, { flags: 'a' });
         logStream.on('error', () => { logStream = null; });
-        // Also symlink to /tmp for easy access
-        const tmpLog = path.join(os.tmpdir(), 'gyroclopter.log');
-        try { fs.unlinkSync(tmpLog); } catch (_) {}
-        fs.symlinkSync(logPath, tmpLog);
+        if (process.platform === 'linux') {
+            const tmpLog = path.join(os.tmpdir(), 'gyroclopter.log');
+            try { fs.unlinkSync(tmpLog); } catch (_) {}
+            fs.symlinkSync(logPath, tmpLog);
+        }
     } catch (err) {
         // Log file initialization failed - continue without file logging
     }
@@ -161,7 +163,8 @@ function getLocalIp() {
 function emitStatus(obj) {
     const line = JSON.stringify(obj) + '\n';
     process.stdout.write(line);
-    writeLog(line.trim());
+    const { qr, pairingUrl, ...logEntry } = obj;
+    writeLog(JSON.stringify(logEntry));
 }
 
 /**
@@ -216,6 +219,10 @@ async function main() {
             handleWsMessage({ type: 'up' }, mouse);
         }
 
+        const pairingKey = process.env.GYROCLOPTER_PAIRING_REQUIRED === '1'
+            ? randomBytes(16).toString('hex')
+            : null;
+
         const server = https.createServer(certificates, (req, res) => {
             // Serve favicon.png for browser tab icon
             if (req.url === '/favicon.png') {
@@ -232,11 +239,21 @@ async function main() {
                     return;
                 }
             }
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(getClientHtml());
+            res.writeHead(200, {
+                'Content-Type': 'text/html',
+                ...(pairingKey ? { 'Cache-Control': 'no-store' } : {})
+            });
+            const clientHtml = getClientHtml();
+            res.end(pairingKey
+                ? clientHtml.replace('<html', '<html data-pairing-required')
+                : clientHtml);
         });
 
-        const wss = new WebSocket.Server({ server });
+        const wss = new WebSocket.Server({
+            server,
+            maxPayload: 4096,
+            verifyClient: ({ req }) => !pairingKey || req.url === `/pair/${pairingKey}`
+        });
 
         // EADDRINUSE etc. must be caught here, otherwise Node throws
         // "Unhandled 'error' event" and the process exits without telling the
@@ -286,9 +303,10 @@ async function main() {
         server.listen(CONFIG.PORT, '0.0.0.0', async () => {
             const port = server.address().port;
             const url = `https://${localIp}:${port}`;
+            const pairingUrl = pairingKey ? `${url}/#pair=${pairingKey}` : undefined;
             let qr = '';
             try {
-                qr = await QRCode.toDataURL(url, {
+                qr = await QRCode.toDataURL(pairingUrl || url, {
                     errorCorrectionLevel: 'M',
                     margin: 1,
                     width: 400
@@ -299,7 +317,8 @@ async function main() {
                 event: 'started',
                 ip: localIp,
                 port,
-                qr: qr,
+                qr,
+                pairingUrl,
                 inputBackend: mouse.name || 'unknown',
                 inputAvailable: mouse.available !== false
             });

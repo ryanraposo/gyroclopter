@@ -4,6 +4,16 @@ if (window.electronAPI?.platform === 'darwin') {
 }
 if (window.electronAPI?.illustrated) document.body.classList.add('illustrated');
 
+if (window.electronAPI?.isStore) document.body.classList.add('store');
+
+const copyPairingUrl = document.getElementById('copy-pairing-url');
+let pairingUrl = null;
+copyPairingUrl.onclick = async () => {
+  if (!pairingUrl) return;
+  const copied = await window.electronAPI?.copyPairingUrl?.(pairingUrl).catch(() => false);
+  copyPairingUrl.textContent = copied ? 'Link copied' : 'Could not copy link';
+};
+
 const STATE = {
   serverPid: null,
   running: false,
@@ -64,6 +74,8 @@ function setStatus(running) {
     els.urlDisplay.textContent = '';
     els.connectedCount.textContent = '';
     STATE.connectedCount = 0;
+    pairingUrl = null;
+    copyPairingUrl.hidden = true;
   }
 }
 
@@ -111,6 +123,9 @@ window.electronAPI?.onServerEvent?.((msg) => {
     case 'started':
       const url = 'https://' + msg.ip + ':' + msg.port;
       showQR(url, msg.qr || '');
+      pairingUrl = msg.pairingUrl || null;
+      copyPairingUrl.hidden = !pairingUrl;
+      copyPairingUrl.textContent = 'Copy pairing link';
       setStatus(true);
       if (!STATE.inputIssue && msg.inputAvailable === false &&
           ['macos', 'windows-store'].includes(msg.inputBackend)) {

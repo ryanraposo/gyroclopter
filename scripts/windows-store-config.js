@@ -15,7 +15,7 @@ const STORE_ENVIRONMENT_VARIABLES = [
  * @returns {{identityName: string, publisher: string, publisherDisplayName: string}}
  */
 function loadWindowsStoreIdentity(env = process.env) {
-  const missing = STORE_ENVIRONMENT_VARIABLES.filter(name => !env[name] || !env[name].trim());
+  const missing = STORE_ENVIRONMENT_VARIABLES.filter(name => typeof env[name] !== 'string' || !env[name].trim());
   if (missing.length > 0) {
     throw new Error(
       `Missing Microsoft Store configuration: ${missing.join(', ')}. ` +
@@ -64,7 +64,16 @@ function loadLocalWindowsStoreIdentity(configPath = LOCAL_CONFIG_PATH) {
   return loadWindowsStoreIdentity(localConfig);
 }
 
+/** Read CI environment values, or fall back to the existing local JSON file. */
+function getWindowsStoreIdentity(env = process.env) {
+  if (STORE_ENVIRONMENT_VARIABLES.some(name => env[name] !== undefined)) {
+    return loadWindowsStoreIdentity(env);
+  }
+  return loadLocalWindowsStoreIdentity();
+}
+
 module.exports = {
+  getWindowsStoreIdentity,
   LOCAL_CONFIG_PATH,
   STORE_ENVIRONMENT_VARIABLES,
   loadLocalWindowsStoreIdentity,

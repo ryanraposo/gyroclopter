@@ -1,5 +1,5 @@
 // app/main.js - Electron main process
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, clipboard } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const { createInterface } = require('readline');
@@ -17,11 +17,12 @@ const STATE = {
   quitting: false
 };
 
+const isStore = gyroclopterEdition === 'store';
 let mainWindow;
 
 function createWindow() {
   const isMac = process.platform === 'darwin';
-  const illustrated = isMac || process.platform === 'linux' || gyroclopterEdition === 'store';
+  const illustrated = isMac || process.platform === 'linux' || isStore;
   mainWindow = new BrowserWindow({
     title: 'Gyroclopter',
     icon: path.join(__dirname, process.platform === 'win32' ? 'favicon.ico' : 'favicon.png'),
@@ -34,7 +35,10 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      additionalArguments: illustrated ? ['--illustrated-window'] : []
+      additionalArguments: [
+        ...(illustrated ? ['--illustrated-window'] : []),
+        ...(isStore ? ['--store-edition'] : [])
+      ]
     }
   });
 
@@ -51,9 +55,9 @@ function createWindow() {
     return false;
   });
 
-  // Auto-start server on launch
+  // The Store build waits for the user to start listening.
   mainWindow.once('ready-to-show', () => {
-    startServer();
+    if (!isStore) startServer();
   });
 }
 
@@ -89,6 +93,11 @@ async function startServer() {
       windowsHide: true,
       env: {
         ...process.env,
+        ...(isStore ? {
+          CERT_DIR: path.join(app.getPath('userData'), 'store-server'),
+          GYROCLOPTER_WINDOWS_HELPER: path.join(process.resourcesPath, 'native', 'gyroclopter-mouse.exe'),
+          GYROCLOPTER_PAIRING_REQUIRED: '1'
+        } : {}),
         ELECTRON_RUN_AS_NODE: '1'  // Run as Node.js with asar support
       }
     });
@@ -234,6 +243,15 @@ function createTray() {
 }
 
 // IPC handlers
+ipcMain.handle('copy-pairing-url', (event, url) => {
+  if (isStore && event.sender === mainWindow?.webContents &&
+      typeof url === 'string' && /^https:\/\/[^/]+\/#pair=[0-9a-f]{32}$/.test(url)) {
+    clipboard.writeText(url);
+    return true;
+  }
+  return false;
+});
+
 ipcMain.on('start-server', () => {
   startServer();
 });

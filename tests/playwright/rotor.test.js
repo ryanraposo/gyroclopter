@@ -114,3 +114,27 @@ for (const [platform, illustrated] of [['linux', true], ['win32', true], ['win32
     }
   });
 }
+
+test('the Store window copies the session URL and clears it when stopped', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.electronAPI = {
+      platform: 'win32',
+      illustrated: true,
+      isStore: true,
+      onServerEvent(handler) { window.receiveServerEvent = handler; },
+      async copyPairingUrl(url) { window.copiedUrl = url; return true; }
+    };
+  });
+  await page.goto(APP_URL);
+  const copy = page.getByRole('button', { name: 'Copy pairing link' });
+  await expect(copy).toBeHidden();
+  const pairingUrl = 'https://192.0.2.1:8443/#pair=' + '1'.repeat(32);
+  await page.evaluate((url) => window.receiveServerEvent({
+    event: 'started', ip: '192.0.2.1', port: 8443, pairingUrl: url
+  }), pairingUrl);
+  await copy.click();
+  await expect(page.getByRole('button', { name: 'Link copied' })).toBeVisible();
+  expect(await page.evaluate(() => window.copiedUrl)).toBe(pairingUrl);
+  await page.evaluate(() => window.receiveServerEvent({ event: 'stopped' }));
+  await expect(page.locator('#copy-pairing-url')).toBeHidden();
+});

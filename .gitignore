@@ -46,6 +46,7 @@ resources/
 build/icon.ico
 build/icons/
 build/appx/
+build/windows-store/
 handoff/
 out/
 .next/

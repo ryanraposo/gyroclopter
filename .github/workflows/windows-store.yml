@@ -1,0 +1,72 @@
+name: Windows Store package
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/windows-store.yml
+      - electron-builder.store.js
+      - 'scripts/*store*'
+      - 'native/windows-store-mouse.c'
+      - 'input/**'
+      - 'platforms/**'
+      - 'app/**'
+      - build/icon-source.png
+      - scripts/build-icon.js
+      - client.html
+      - server.js
+      - package.json
+      - package-lock.json
+  workflow_dispatch:
+    inputs:
+      partner_center:
+        description: Build with the configured Partner Center identity
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-store-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  appx:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      WINDOWS_STORE_IDENTITY_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.partner_center && vars.WINDOWS_STORE_IDENTITY_NAME || 'Gyroclopter.CI' }}
+      WINDOWS_STORE_PUBLISHER: ${{ github.event_name == 'workflow_dispatch' && inputs.partner_center && vars.WINDOWS_STORE_PUBLISHER || 'CN=Gyroclopter CI' }}
+      WINDOWS_STORE_PUBLISHER_DISPLAY_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.partner_center && vars.WINDOWS_STORE_PUBLISHER_DISPLAY_NAME || 'Gyroclopter CI' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - if: github.event_name == 'workflow_dispatch' && inputs.partner_center
+        name: Require the real Partner Center identity
+        shell: pwsh
+        run: |
+          if ($env:WINDOWS_STORE_IDENTITY_NAME -eq 'Gyroclopter.CI' -or
+              $env:WINDOWS_STORE_PUBLISHER -eq 'CN=Gyroclopter CI' -or
+              $env:WINDOWS_STORE_PUBLISHER_DISPLAY_NAME -eq 'Gyroclopter CI') {
+            throw 'Configure all three WINDOWS_STORE_* repository variables before building for Partner Center.'
+          }
+      - run: npm ci
+      - run: npm test -- --runInBand
+      - name: Build native helper and Store package
+        shell: cmd
+        run: |
+          for /f "usebackq tokens=*" %%I in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do call "%%I\VC\Auxiliary\Build\vcvars64.bat"
+          call npm run build:win:store
+      - name: Inspect AppX and execute the packaged helper self-test
+        shell: pwsh
+        run: ./scripts/verify-windows-store.ps1
+      - name: Launch the packaged desktop and exercise pairing
+        run: node scripts/smoke-windows-store.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event_name == 'workflow_dispatch' && inputs.partner_center && 'gyroclopter-partner-center-x64' || 'gyroclopter-store-ci-x64' }}
+          path: dist/store/*.appx
+          if-no-files-found: error
