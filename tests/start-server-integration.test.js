@@ -30,7 +30,7 @@ describe('Start Server Integration', () => {
     const serverPath = path.join(__dirname, '..', 'server.js');
     
     // Spawn server with a test port via CERT_DIR
-    const env = { ...process.env, CERT_DIR: testCertDir };
+    const env = { ...process.env, CERT_DIR: testCertDir, PORT: '0' };
     const serverProcess = spawn(process.execPath, [serverPath], {
       env,
       stdio: ['ignore', 'pipe', 'pipe']
