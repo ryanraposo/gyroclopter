@@ -56,7 +56,7 @@ try {
   $helper = Join-Path $extractDir 'gyroclopter-mouse.exe'
   [IO.Compression.ZipFileExtensions]::ExtractToFile($entries[$asarEntry[0]], $asar)
   [IO.Compression.ZipFileExtensions]::ExtractToFile($entries[$helperEntry[0]], $helper)
-  node -e "const asar = require('@electron/asar'); const p = process.argv[1]; if (JSON.parse(asar.extractFile(p, 'package.json')).gyroclopterEdition !== 'store' || !asar.statFile(p, 'input/windows-store.js')) process.exit(1)" $asar
+  node -e "const asar = require('@electron/asar'); const p = process.argv[1]; if (JSON.parse(asar.extractFile(p, 'package.json')).gyroclopterEdition !== 'store' || !asar.statFile(p, 'platforms/desktop/windows/store-input.js')) process.exit(1)" $asar
   if ($LASTEXITCODE -ne 0) { throw 'The packaged app is missing Store metadata or the input backend.' }
   $result = & $helper --self-test
   if ($LASTEXITCODE -ne 0 -or $result -ne 'SELF_TEST_OK') { throw 'Native mouse helper self-test failed.' }
