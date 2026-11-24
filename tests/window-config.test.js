@@ -36,6 +36,15 @@ test('Electron startup creates the illustrated window on Linux and macOS', async
         platform === 'win32' ? [] : ['--illustrated-window']
       );
       expect(options.transparent || false).toBe(platform === 'darwin');
+
+      const window = createWindow.mock.results[0].value;
+      const close = { preventDefault: jest.fn() };
+      window.hide = jest.fn();
+      window.emit('close', close);
+      expect(close.preventDefault).toHaveBeenCalledTimes(1);
+      app.emit('before-quit');
+      window.emit('close', close);
+      expect(close.preventDefault).toHaveBeenCalledTimes(1);
     } finally {
       Object.defineProperty(process, 'platform', platformDescriptor);
     }

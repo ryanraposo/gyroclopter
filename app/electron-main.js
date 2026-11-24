@@ -13,7 +13,8 @@ const STATE = {
   connectedCount: 0,
   tray: null,
   stopping: false,
-  starting: false
+  starting: false,
+  quitting: false
 };
 
 let mainWindow;
@@ -42,7 +43,7 @@ function createWindow() {
 
   // Minimize to tray on close
   mainWindow.on('close', (event) => {
-    if (process.appClosing) {
+    if (STATE.quitting) {
       return;
     }
     event.preventDefault();
@@ -66,7 +67,7 @@ function getServerPath() {
 }
 
 async function startServer() {
-  if (STATE.running || STATE.starting || STATE.stopping) {
+  if (STATE.quitting || STATE.running || STATE.starting || STATE.stopping) {
     console.log('Skipping start - server is running:', STATE.running, ', starting:', STATE.starting, ', stopping:', STATE.stopping);
     return;
   }
@@ -208,11 +209,7 @@ function updateTrayMenu() {
     { type: 'separator' },
     {
       label: 'Quit',
-      click: () => {
-        if (STATE.running) stopServer();
-        process.appClosing = true;
-        app.quit();
-      }
+      click: () => app.quit()
     }
   ]);
   
@@ -273,8 +270,9 @@ app.on('window-all-closed', (event) => {
   // Keep app running in tray
 });
 
-app.on('will-quit', () => {
-  stopServer();
+app.on('before-quit', () => {
+  STATE.quitting = true;
+  if (STATE.serverProcess) stopServer();
 });
 
 app.on('activate', () => {
