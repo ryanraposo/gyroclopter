@@ -56,6 +56,10 @@
     "files": [
       "app/**/*",
       "input/**/*",
+      "platforms/index.js",
+      "platforms/desktop/**/*",
+      "platforms/tv/**/*",
+      "platforms/bridge/**/*",
       "server.js",
       "client.html"
     ],

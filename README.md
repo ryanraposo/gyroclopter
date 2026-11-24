@@ -54,6 +54,8 @@ TV targets are ordered by approximate global popularity, using [AdKemix's Q2 202
 
 Other platform work (not directly comparable to TV market share): [macOS #25](https://github.com/ryanraposo/gyroclopter/issues/25), [ChromeOS #34](https://github.com/ryanraposo/gyroclopter/issues/34), [native iOS / Android controller #48](https://github.com/ryanraposo/gyroclopter/issues/48), [external HID / HDMI-CEC bridge #47](https://github.com/ryanraposo/gyroclopter/issues/47).
 
+Platform architecture: [adapter layout and integration rules](platforms/README.md) · [runtime contract](ARCHITECTURE.md).
+
 Shared implementation foundation: [#41](https://github.com/ryanraposo/gyroclopter/issues/41).
 
 ---

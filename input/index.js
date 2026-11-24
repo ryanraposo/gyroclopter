@@ -1,43 +1,24 @@
 const os = require('os');
-const WindowsInputController = require('./windows');
-const LinuxInputController = require('./linux');
-const UnsupportedInputController = require('./unsupported');
+const { registry } = require('../platforms');
 
-const BACKEND_ALIASES = {
-  win32: 'windows',
-  windows: 'windows',
-  linux: 'linux',
-  none: 'unsupported',
-  unsupported: 'unsupported'
-};
+function normalize(options = {}) {
+  return { ...options, platform: options.platform || os.platform(), env: options.env || process.env };
+}
 
 function resolveInputBackend(options = {}) {
-  const platform = options.platform || os.platform();
-  const env = options.env || process.env;
-  const requested = env.GYROCLOPTER_INPUT_BACKEND;
-
-  if (requested) {
-    const backend = BACKEND_ALIASES[String(requested).toLowerCase()];
-    if (!backend) {
-      throw new Error(`Unknown GYROCLOPTER_INPUT_BACKEND: ${requested}`);
-    }
-    return backend;
-  }
-
-  if (platform === 'win32') return 'windows';
-  if (platform === 'linux') return 'linux';
-  return 'unsupported';
+  return registry.resolve(normalize(options));
 }
 
 function createInputController(options = {}) {
-  const backend = resolveInputBackend(options);
-
-  if (backend === 'windows') return new WindowsInputController(options);
-  if (backend === 'linux') return new LinuxInputController(options);
-  return new UnsupportedInputController(options.platform || os.platform());
+  return registry.create(normalize(options));
 }
 
-module.exports = {
-  createInputController,
-  resolveInputBackend
-};
+function describeInputBackend(options = {}) {
+  return registry.describe(normalize(options));
+}
+
+function listInputBackends() {
+  return registry.list();
+}
+
+module.exports = { resolveInputBackend, createInputController, describeInputBackend, listInputBackends };

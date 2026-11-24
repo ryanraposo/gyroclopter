@@ -80,8 +80,9 @@ The wire protocol and host input are intentionally separate.
 
 - `input/commands.js` validates mobile messages and emits the stable command protocol:
   `MOVE dx dy`, `LEFT_DOWN`, `LEFT_UP`, `CLICK_RIGHT`, `SCROLL delta`
-- `input/windows.js`: PowerShell + P/Invoke (`user32.dll::mouse_event`)
-- `input/linux.js`: `xdotool` on X11, `ydotool` on Wayland
+- `platforms/desktop/windows/`: PowerShell + P/Invoke (`user32.dll::mouse_event`)
+- `platforms/desktop/linux/`: `xdotool` on X11, `ydotool` on Wayland
+- `platforms/index.js` registers actual adapters; `input/registry.js` owns selection. Follow [platform integration rules](platforms/README.md).
 - unsupported platforms use an explicit no-op backend rather than falling through to Linux
 - `GYROCLOPTER_INPUT_BACKEND` may select a backend explicitly for development/platform bridges
 
