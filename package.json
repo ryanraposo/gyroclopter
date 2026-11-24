@@ -26,7 +26,7 @@
     "clean": "node -e \"const fs=require('fs');['dist','resources'].forEach(d=>fs.rmSync(d,{recursive:true,force:true}))\"",
     "build": "npm run clean && npm run build:icons && electron-builder --win --linux",
     "build:win": "electron-builder --win",
-    "build:win:store": "npm run build:icons && electron-builder --config electron-builder.store.js",
+    "build:win:store": "npm run check:win:store && npm run build:icons && node scripts/build-windows-store-mouse.js && electron-builder --win appx --x64 --config electron-builder.store.js --publish=never",
     "build:linux": "electron-builder --linux",
     "build:mac:native": "node scripts/build-mac.js",
     "build:mac": "npm run build:mac:native && electron-builder --mac dmg zip --universal"

@@ -1,10 +1,11 @@
 const { EventEmitter } = require('events');
 
-test('Electron startup creates the illustrated window on Linux and macOS', async () => {
+test('Electron startup selects the illustrated window for Linux, macOS and Store', async () => {
   const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform');
-  for (const platform of ['linux', 'darwin', 'win32']) {
+  for (const [platform, isStore] of [['linux', false], ['darwin', false], ['win32', false], ['win32', true]]) {
     jest.resetModules();
     Object.defineProperty(process, 'platform', { ...platformDescriptor, value: platform });
+    jest.doMock('../package.json', () => ({ gyroclopterEdition: isStore ? 'store' : undefined }));
     const createWindow = jest.fn(() => {
       const window = new EventEmitter();
       window.loadFile = jest.fn();
@@ -20,10 +21,12 @@ test('Electron startup creates the illustrated window on Linux and macOS', async
     const app = new EventEmitter();
     app.whenReady = () => Promise.resolve();
     app.requestSingleInstanceLock = () => true;
+    const ipcMain = new EventEmitter();
+    ipcMain.handle = jest.fn();
     jest.doMock('electron', () => ({
       app,
       BrowserWindow: createWindow,
-      ipcMain: new EventEmitter(),
+      ipcMain,
       Tray: createTray,
       Menu: { buildFromTemplate: jest.fn() },
       nativeImage: { createFromPath: () => ({ resize: jest.fn() }) }
@@ -33,7 +36,8 @@ test('Electron startup creates the illustrated window on Linux and macOS', async
       await app.whenReady();
       const [options] = createWindow.mock.calls[0];
       expect(options.webPreferences.additionalArguments).toEqual(
-        platform === 'win32' ? [] : ['--illustrated-window']
+        isStore ? ['--illustrated-window', '--store-edition']
+          : platform === 'win32' ? [] : ['--illustrated-window']
       );
       expect(options.transparent || false).toBe(platform === 'darwin');
 

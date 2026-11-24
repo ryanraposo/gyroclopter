@@ -36,7 +36,9 @@
   <div class="card instructions" id="instructions">
     <ol>
       <li>Connect your phone to the same Wi‑Fi network</li>
-      <li>Scan the QR code or enter the URL manually</li>
+      <li class="standard-pairing">Scan the QR code or enter the URL manually</li>
+      <li class="store-only">Scan the QR code or copy and share the pairing link</li>
+      <li class="store-only">Use private Wi-Fi. Closing this window leaves the server in the tray. Stop the server to end pairing.</li>
       <li>Accept the self‑signed certificate warning</li>
       <li>Grant motion permission when prompted</li>
       <li class="mac-only">Allow Accessibility access in <button class="settings-link" id="accessibility-settings" type="button">System Settings</button></li>
@@ -45,6 +47,7 @@
   </div>
 
   <button class="illustrated-help illustrated-only" id="btn-help" type="button" aria-controls="instructions" aria-expanded="false">How to fly?</button>
+  <button class="illustrated-help illustrated-only" id="copy-pairing-url" type="button" hidden>Copy pairing link</button>
   <div class="footer">v0.6.0</div>
 
   <script src="renderer.js"></script>

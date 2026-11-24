@@ -254,3 +254,27 @@ html:has(body.illustrated:not(.macos)) {
 }
 
 body.macos li.mac-only { display: list-item; }
+
+.store-only, body.store .standard-pairing { display: none; }
+body.store li.store-only { display: list-item; }
+body.store .instructions { overflow-y: auto; }
+body.store #copy-pairing-url {
+  top: 645px;
+  left: 225px;
+}
+#copy-pairing-url[hidden] { display: none; }
+body.store #btn-toggle {
+  top: 60px;
+  left: 62px;
+  width: auto;
+  height: auto;
+  padding: 6px 12px;
+  border: 2px solid #3b1907;
+  border-radius: 18px;
+  background: #fff9e8;
+  color: #3b1907;
+  box-shadow: 2px 3px 0 #5a2508;
+  font-size: 12px;
+}
+
+body.store #btn-toggle:hover { background: #ffffff; }
