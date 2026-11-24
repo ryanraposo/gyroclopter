@@ -28,7 +28,7 @@ sudo dpkg -i gyroclopter_*.deb
 Then launch from your applications menu.
 
 ### macOS
-Coming soon!
+A single universal `.pkg` installer is planned for the next public release. Open the package, follow Installer's prompts, and launch Gyroclopter from Applications. Intel and Apple silicon use the same file. For current unsigned development builds and Accessibility setup, see [macOS setup](MACOS.md).
 
 ---
 
@@ -98,15 +98,18 @@ npm run build
 # Or build for specific platforms:
 npm run build:win    # Windows installer (.exe)
 npm run build:linux  # Linux package (.deb)
+npm run build:mac    # Universal macOS installer (.pkg; on macOS)
 ```
 
 **Requirements:**
+- **macOS builds:** Xcode command-line tools and Node.js 24; public PKG distribution requires signing and notarization.
 - **Linux builds:** No extra dependencies
 - **Windows builds (from Linux):** Requires Wine (`sudo apt install wine64`)
 
 Produces:
 - `dist/Gyroclopter Setup *.exe` (Windows NSIS installer, ~75 MB)
 - `dist/gyroclopter_*.deb` (Linux Debian package, ~71 MB)
+- `dist/Gyroclopter-<version>.pkg` (universal macOS installer)
 
 ---
 
