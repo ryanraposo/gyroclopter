@@ -31,6 +31,8 @@ if (document.body.classList.contains('illustrated')) {
     els.btnHelp.setAttribute('aria-expanded', String(open));
     els.instructions.setAttribute('aria-hidden', String(!open));
   });
+  document.getElementById('accessibility-settings').onclick = () =>
+    window.electronAPI?.openAccessibilitySettings?.();
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && document.body.classList.contains('help-open')) {
       els.btnHelp.click();

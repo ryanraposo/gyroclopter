@@ -77,3 +77,6 @@ Thumbs.db
 # Hermes Agent (Local Configuration)
 # ==========================================
 .hermes/
+build/icon.icns
+build/icon.iconset/
+build/macos/

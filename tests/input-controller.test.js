@@ -34,7 +34,7 @@ describe('input backend architecture', () => {
   test('resolves native platform backends explicitly', () => {
     expect(resolveInputBackend({ platform: 'win32', env: {} })).toBe('windows');
     expect(resolveInputBackend({ platform: 'linux', env: {} })).toBe('linux');
-    expect(resolveInputBackend({ platform: 'darwin', env: {} })).toBe('unsupported');
+    expect(resolveInputBackend({ platform: 'darwin', env: {} })).toBe('macos');
   });
 
   test('allows an explicit backend override', () => {

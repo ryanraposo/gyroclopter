@@ -14,6 +14,16 @@ body.illustrated {
 
 body.illustrated .illustrated-only { display: block; }
 
+body.macos .settings-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 body.illustrated .character-art,
 body.illustrated .rotor-assembly {
   position: absolute;

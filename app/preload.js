@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startServer: () => ipcRenderer.send('start-server'),
   onServerEvent: (callback) => ipcRenderer.on('server-event', (event, msg) => callback(msg)),
   onServerExit: (callback) => ipcRenderer.on('server-exit', (event) => callback()),
-  stopServer: () => ipcRenderer.send('stop-server')
+  stopServer: () => ipcRenderer.send('stop-server'),
+  openAccessibilitySettings: () => ipcRenderer.send('open-accessibility-settings')
 });
