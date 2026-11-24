@@ -34,8 +34,8 @@ npm run build
 ```
 - Test suite must exit with code 0 before any commit.
 - Build produces installers in `dist/`:
-  - Windows: `Gyroclopter-0.4.0.exe` (NSIS installer)
-  - Linux: `gyroclopter_0.4.0_amd64.deb` (Debian package)
+  - Windows: `gyroclopter-<version>.exe` (NSIS installer)
+  - Linux: `gyroclopter-<version>.deb` (Debian package)
 
 ---
 
@@ -148,8 +148,8 @@ gyroclopter/
 │
 ├── dist/                         # Build output (gitignored)
 │   ├── win-unpacked/             # Unpacked Windows build (dev)
-│   ├── gyroclopter-0.5.0.exe     # Windows NSIS installer
-│   └── gyroclopter_0.5.0_amd64.deb  # Linux Debian package
+│   ├── gyroclopter-<version>.exe  # Windows NSIS installer
+│   └── gyroclopter-<version>.deb  # Linux Debian package
 │
 ├── package.json                  # Dependencies, scripts, electron-builder config
 ├── package-lock.json             # Locked dependency versions

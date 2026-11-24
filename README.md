@@ -22,13 +22,13 @@ Download the latest installer from [Releases](https://github.com/ryanraposo/gyro
 ### Linux
 Download the latest `.deb` from [Releases](https://github.com/ryanraposo/gyroclopter/releases) and install:
 ```bash
-sudo dpkg -i gyroclopter_*.deb
+sudo dpkg -i gyroclopter-*.deb
 ```
 
 Then launch from your applications menu.
 
 ### macOS
-A single universal `.pkg` installer is planned for the next public release. Open the package, follow Installer's prompts, and launch Gyroclopter from Applications. Intel and Apple silicon use the same file. For current unsigned development builds and Accessibility setup, see [macOS setup](MACOS.md).
+When the universal `.pkg` is available on [Releases](https://github.com/ryanraposo/gyroclopter/releases), open it, follow Installer's prompts, and launch Gyroclopter from Applications. Intel and Apple silicon use the same file. See [macOS setup](MACOS.md) for Accessibility and unsigned review builds.
 
 ---
 
@@ -107,8 +107,8 @@ npm run build:mac    # Universal macOS installer (.pkg; on macOS)
 - **Windows builds (from Linux):** Requires Wine (`sudo apt install wine64`)
 
 Produces:
-- `dist/Gyroclopter Setup *.exe` (Windows NSIS installer, ~75 MB)
-- `dist/gyroclopter_*.deb` (Linux Debian package, ~71 MB)
+- `dist/gyroclopter-<version>.exe` (Windows NSIS installer)
+- `dist/gyroclopter-<version>.deb` (Linux Debian package)
 - `dist/Gyroclopter-<version>.pkg` (universal macOS installer)
 
 ---
@@ -148,7 +148,7 @@ This creates:
 - Tray: 16x16 favicon in system tray
 
 **Linux:**
-- Package: `dist/gyroclopter_*.deb` (uses `build/icons/` directory)
+- Package: `dist/gyroclopter-*.deb` (uses `build/icons/` directory)
 - System icons: Installed via Debian package manager
 
 ---
