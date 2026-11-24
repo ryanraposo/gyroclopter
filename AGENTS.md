@@ -39,9 +39,11 @@ npm run build
 
 ---
 
-## CHANGELOG Maintenance
+## Changelog and Releases
 
-See [RELEASE.md](RELEASE.md) for instructions on updating `CHANGELOG.md` before merging to `main`.
+- Target `dev` for feature and fix PRs. Add a user-facing bullet under `Unreleased` in `CHANGELOG.md` when the PR changes behavior or distribution. Keep experimental support and hardware acceptance explicit.
+- Run `npm run release:check` and `npm test` before committing. Use `npm run release:preview` to review queued notes.
+- For a requested release, use `npm run release:prepare -- <version>` on `dev` and open the PR into `main`. Tag and publish only when requested. See [RELEASE.md](RELEASE.md) for the exact commands.
 
 ---
 
@@ -137,7 +139,7 @@ gyroclopter/
 │
 ├── scripts/                      # Build utilities
 │   ├── build-icon.js             # Generates icon from hero.png
-│   └── changelog.sh              # Changelog generation script
+│   └── release.js                # Prepare and verify release metadata
 │
 ├── build/                        # Build resources (icons, etc.)
 │   ├── icon.ico                  # Windows app/tray icon (generated)

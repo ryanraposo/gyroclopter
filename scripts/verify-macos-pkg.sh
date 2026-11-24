@@ -25,6 +25,12 @@ lipo "$app/Contents/MacOS/Gyroclopter" -verify_arch arm64 x86_64
 lipo "$helper" -verify_arch arm64 x86_64
 "$helper" --self-test
 
+if [[ "${VERIFY_MACOS_SIGNATURE:-0}" == 1 ]]; then
+  codesign --verify --deep --strict "$app"
+  codesign -dvv "$app" 2>&1 | grep '^Authority=Developer ID Application:'
+  pkgutil --check-signature "$package" | grep 'Developer ID Installer:'
+fi
+
 # Verify the component installs into Applications, not an arbitrary path.
 find "$tmp/expanded" -type f -name PackageInfo -exec grep -l 'install-location="/Applications"' {} + > "$tmp/install-locations"
 test -s "$tmp/install-locations"

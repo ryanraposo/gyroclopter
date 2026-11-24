@@ -1,0 +1,173 @@
+name: Release installers
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-installers-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - id: version
+        name: Verify release metadata and source
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          npm run --silent release:notes -- "${RELEASE_TAG:-v$version}"
+          if [[ -n "$BASE_SHA" ]]; then
+            base_version="$(git show "$BASE_SHA:package.json" | node -pe 'JSON.parse(require("node:fs").readFileSync(0, "utf8")).version')"
+            if [[ "$base_version" == "$version" ]]; then
+              echo "::error::Run release:prepare on dev with a new version before promoting to main."
+              exit 1
+            fi
+          fi
+          if [[ -n "$RELEASE_TAG" ]] && ! git merge-base --is-ancestor HEAD refs/remotes/origin/main; then
+            echo "::error::Tag the release commit on main after the release PR is merged."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - run: npm ci
+      - run: npm test -- --runInBand
+
+  windows:
+    name: Windows installer
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:win -- --publish=never
+      - name: Verify NSIS installer
+        shell: pwsh
+        run: |
+          $exe = "dist/gyroclopter-$env:RELEASE_VERSION.exe"
+          $stream = [System.IO.File]::OpenRead((Resolve-Path -LiteralPath $exe).Path)
+          try {
+            if ($stream.ReadByte() -ne 0x4D -or $stream.ReadByte() -ne 0x5A) {
+              throw "Expected a Windows executable at $exe"
+            }
+          } finally {
+            $stream.Dispose()
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-nsis-installer
+          path: dist/gyroclopter-${{ needs.validate.outputs.version }}.exe
+          if-no-files-found: error
+
+  linux:
+    name: Linux package
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:linux -- --publish=never
+      - name: Verify Debian package
+        run: |
+          package="dist/gyroclopter-$RELEASE_VERSION.deb"
+          dpkg-deb --info "$package"
+          test "$(dpkg-deb --field "$package" Version)" = "$RELEASE_VERSION"
+          test "$(dpkg-deb --field "$package" Architecture)" = amd64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-debian-package
+          path: dist/gyroclopter-${{ needs.validate.outputs.version }}.deb
+          if-no-files-found: error
+
+  macos:
+    name: Signed macOS package
+    if: github.ref_type == 'tag'
+    needs: validate
+    uses: ./.github/workflows/macos-package.yml
+    with:
+      signed: true
+    secrets:
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
+      CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+  draft:
+    name: Stage GitHub Release
+    if: github.ref_type == 'tag'
+    needs: [validate, windows, linux, macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.ref_name }}
+      RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v5
+        with:
+          path: installers
+          merge-multiple: true
+      - name: Assemble release notes and checksums
+        run: |
+          npm run --silent release:notes -- "$RELEASE_TAG" > "$RUNNER_TEMP/release-notes.md"
+          cd installers
+          sha256sum "gyroclopter-$RELEASE_VERSION.exe" "gyroclopter-$RELEASE_VERSION.deb" \
+            "Gyroclopter-$RELEASE_VERSION.pkg" > SHA256SUMS.txt
+      - name: Create or refresh the draft
+        working-directory: installers
+        run: |
+          assets=("gyroclopter-$RELEASE_VERSION.exe" "gyroclopter-$RELEASE_VERSION.deb" \
+            "Gyroclopter-$RELEASE_VERSION.pkg" SHA256SUMS.txt)
+          if draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)"; then
+            if [[ "$draft" != true ]]; then
+              echo "::notice::Release $RELEASE_TAG is already published."
+              exit 0
+            fi
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+            gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+          else
+            gh release create "$RELEASE_TAG" "${assets[@]}" --draft --verify-tag \
+              --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
+          url="$(gh release view "$RELEASE_TAG" --json url --jq .url)"
+          printf '[Review the %s release draft](%s)\n' "$RELEASE_TAG" "$url" >> "$GITHUB_STEP_SUMMARY"
