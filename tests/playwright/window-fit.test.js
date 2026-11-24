@@ -1,8 +1,12 @@
+const { pathToFileURL } = require('url');
+const path = require('path');
 const { test, expect } = require('@playwright/test');
+
+const APP_URL = pathToFileURL(path.resolve(__dirname, '../../app/index.html')).href;
 
 test('window content fits without vertical overflow', async ({ page }) => {
   // Load the HTML file directly
-  await page.goto('file:///home/ryan/repo/gyroclopter/app/index.html');
+  await page.goto(APP_URL);
   
   // Get the body scroll height and viewport height
   const bodyHeight = await page.evaluate(() => document.body.scrollHeight);
@@ -26,7 +30,7 @@ test('window content fits without vertical overflow', async ({ page }) => {
 });
 
 test('all cards are visible within viewport', async ({ page }) => {
-  await page.goto('file:///home/ryan/repo/gyroclopter/app/index.html');
+  await page.goto(APP_URL);
   
   // Check each card is within viewport
   const cardsVisibility = await page.evaluate(() => {
@@ -48,7 +52,7 @@ test('all cards are visible within viewport', async ({ page }) => {
 });
 
 test('footer is visible at bottom', async ({ page }) => {
-  await page.goto('file:///home/ryan/repo/gyroclopter/app/index.html');
+  await page.goto(APP_URL);
   
   const footerVisible = await page.evaluate(() => {
     const footer = document.querySelector('.footer');
@@ -59,7 +63,7 @@ test('footer is visible at bottom', async ({ page }) => {
 });
 
 test('instructions card has internal scroll if needed', async ({ page }) => {
-  await page.goto('file:///home/ryan/repo/gyroclopter/app/index.html');
+  await page.goto(APP_URL);
   
   // Instructions should have overflow-y: auto for internal scrolling
   const instructionsOverflow = await page.evaluate(() => 

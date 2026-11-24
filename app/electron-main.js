@@ -5,6 +5,7 @@ const { spawn } = require('child_process');
 const { createInterface } = require('readline');
 const os = require('os');
 const { networkInterfaces } = require('os');
+const { gyroclopterEdition } = require('../package.json');
 
 const STATE = {
   serverPid: null,
@@ -18,16 +19,20 @@ const STATE = {
 let mainWindow;
 
 function createWindow() {
+  const illustrated = isMac || process.platform === 'linux' || gyroclopterEdition === 'store';
   mainWindow = new BrowserWindow({
     title: 'Gyroclopter',
     icon: path.join(__dirname, 'favicon.ico'),
-    width: 420,
-    height: 700,
+    width: illustrated ? 532 : 420,
+    height: illustrated ? 560 : 700,
+    useContentSize: illustrated,
+    ...(isMac ? { transparent: true, titleBarStyle: 'hiddenInset', backgroundColor: '#00000000', hasShadow: false } : {}),
     resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      additionalArguments: illustrated ? ['--illustrated-window'] : []
     }
   });
 
@@ -216,14 +221,12 @@ function updateTrayMenu() {
 }
 
 function createTray() {
-  // On Windows, use ICO format for best tray icon support
-  // On Linux, use PNG from the icons directory
-  const iconPath = process.platform === 'win32' 
-    ? path.join(__dirname, '..', 'build', 'icon.ico')
-    : path.join(__dirname, '..', 'build', 'icons', '16x16.png');
-  const trayIcon = nativeImage.createFromPath(iconPath);
-  
+  const isWindows = process.platform === 'win32';
+  const iconPath = path.join(__dirname, isWindows ? 'favicon.ico' : 'favicon.png');
+  const source = nativeImage.createFromPath(iconPath);
+  const trayIcon = isWindows ? source : source.resize({ width: 18, height: 18 });
   STATE.tray = new Tray(trayIcon);
+  STATE.tray.setToolTip('Gyroclopter');
   updateTrayMenu();
   
   STATE.tray.on('click', () => {
@@ -276,5 +279,8 @@ app.on('will-quit', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+  } else if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
   }
 });

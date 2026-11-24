@@ -1,4 +1,9 @@
 // app/renderer.js - Desktop UI controller
+if (window.electronAPI?.platform === 'darwin') {
+  document.body.classList.add('macos');
+}
+if (window.electronAPI?.illustrated) document.body.classList.add('illustrated');
+
 const STATE = {
   serverPid: null,
   running: false,
@@ -13,16 +18,36 @@ const els = {
   statusDot: document.getElementById('status-dot'),
   statusText: document.getElementById('status-text'),
   connectedCount: document.getElementById('connected-count'),
-  btnToggle: document.getElementById('btn-toggle')
+  btnToggle: document.getElementById('btn-toggle'),
+  btnHelp: document.getElementById('btn-help'),
+  instructions: document.getElementById('instructions')
 };
+
+if (document.body.classList.contains('illustrated')) {
+  els.instructions.setAttribute('aria-hidden', 'true');
+  els.btnHelp.addEventListener('click', () => {
+    const open = document.body.classList.toggle('help-open');
+    els.btnHelp.setAttribute('aria-expanded', String(open));
+    els.instructions.setAttribute('aria-hidden', String(!open));
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && document.body.classList.contains('help-open')) {
+      els.btnHelp.click();
+      els.btnHelp.focus();
+    }
+  });
+}
 
 function setStatus(running) {
   STATE.running = running;
+  document.body.classList.toggle('server-running', running);
+  if (!running) document.body.classList.remove('device-connected');
   STATE.togglePending = false;
   els.statusDot.className = 'status-dot ' + (running ? 'running' : 'stopped');
   els.statusText.textContent = running ? 'Running' : 'Stopped';
   els.btnToggle.textContent = running ? 'Stop Server' : 'Start Server';
   els.btnToggle.className = 'btn ' + (running ? 'btn-stop' : 'btn-start');
+  els.btnToggle.title = running ? 'Stop server' : 'Start server';
   if (!running) {
     els.qrCanvas.innerHTML = '<span id="qr-placeholder">Start the server to see the pairing QR code</span>';
     els.urlDisplay.textContent = '';
@@ -33,6 +58,7 @@ function setStatus(running) {
 
 function setConnectedCount(count) {
   STATE.connectedCount = count;
+  document.body.classList.toggle('device-connected', count > 0);
   els.connectedCount.textContent = count > 0 ? count + ' device' + (count !== 1 ? 's' : '') + ' connected' : '';
 }
 
