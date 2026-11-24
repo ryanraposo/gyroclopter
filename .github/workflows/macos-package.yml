@@ -101,3 +101,4 @@ jobs:
           name: ${{ inputs.signed && 'macos-universal-pkg-release' || 'macos-universal-pkg-review' }}
           path: dist/*.pkg
           if-no-files-found: error
+          overwrite: true

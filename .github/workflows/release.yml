@@ -42,9 +42,11 @@ jobs:
               exit 1
             fi
           fi
-          if [[ -n "$RELEASE_TAG" ]] && ! git merge-base --is-ancestor HEAD refs/remotes/origin/main; then
-            echo "::error::Tag the release commit on main after the release PR is merged."
-            exit 1
+          if [[ -n "$RELEASE_TAG" ]]; then
+            if ! git rev-list --first-parent refs/remotes/origin/main | grep -Fx "$(git rev-parse HEAD)" > /dev/null; then
+              echo "::error::Tag the release merge commit on main after the release PR is merged."
+              exit 1
+            fi
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - run: npm ci
@@ -82,6 +84,7 @@ jobs:
           name: windows-nsis-installer
           path: dist/gyroclopter-${{ needs.validate.outputs.version }}.exe
           if-no-files-found: error
+          overwrite: true
 
   linux:
     name: Linux package
@@ -109,6 +112,7 @@ jobs:
           name: linux-debian-package
           path: dist/gyroclopter-${{ needs.validate.outputs.version }}.deb
           if-no-files-found: error
+          overwrite: true
 
   macos:
     name: Signed macOS package
