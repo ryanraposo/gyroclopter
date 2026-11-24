@@ -79,3 +79,7 @@ Only registered and tested integrations are active. Keep the shared server,
 mobile wire format, installer identities, native build and CI behavior intact
 when adding a platform. Test adapters with fixtures and validate actual
 permissions, lifecycle and input on physical hardware before claiming support.
+
+## TV runtime
+
+See [TV foundation](platforms/tv/README.md) for capability negotiation, session ownership, bounded directional focus and the discovery boundary. See [platform acceptance](PLATFORM-ACCEPTANCE.md) for integration/release gates.
