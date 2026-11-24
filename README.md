@@ -32,6 +32,32 @@ Coming soon!
 
 ---
 
+## Platform Roadmap
+
+TV targets are ordered by approximate global popularity, using [AdKemix's Q2 2025 active-device estimates](https://www.hbbtv.org/wp-content/uploads/2025/11/Damien-de-FOUCAULT-Adkemix_TV-OS-Panorama_Nov-2025_presentation_.pdf), [2026 US connected-TV usage](https://www.prnewswire.com/news-releases/parks-associates-roku-28-and-samsung-23-dominate-connected-tv-platforms-controlling-access-to-streaming-audiences-in-the-us-market-302749732.html) and [Whale TV's installed base](https://whaletv.com/news/whale-tv-expands-global-footprint-with-new-tv-brand-partnerships-in-europe-brazil-and-australia). The order is indicative where comparable global figures are unavailable; it is not implementation order. A checked box means verified support on physical hardware.
+
+| Platform | Summary | Issue number | Checkbox |
+| --- | --- | --- | :---: |
+| Android TV / Google TV | Paired LAN remote; Bluetooth HID pointer. | [#27](https://github.com/ryanraposo/gyroclopter/issues/27) | ☐ |
+| Samsung Tizen | Paired WebSocket navigation; HID feasibility. | [#28](https://github.com/ryanraposo/gyroclopter/issues/28) | ☐ |
+| LG webOS | SSAP pointer, click, scroll and navigation. | [#31](https://github.com/ryanraposo/gyroclopter/issues/31) | ☐ |
+| Roku OS | Authorized remote or hardware fallback; policy gate. | [#29](https://github.com/ryanraposo/gyroclopter/issues/29) | ☐ |
+| Amazon Fire TV | Fire OS remote; separate Vega OS feasibility. | [#26](https://github.com/ryanraposo/gyroclopter/issues/26), [#42](https://github.com/ryanraposo/gyroclopter/issues/42) | ☐ |
+| Whale OS / Foxxum | Authorized remote or HID feasibility. | [#49](https://github.com/ryanraposo/gyroclopter/issues/49) | ☐ |
+| Hisense VIDAA | Partner or authorized LAN remote. | [#32](https://github.com/ryanraposo/gyroclopter/issues/32) | ☐ |
+| Vizio SmartCast / CastOS | Paired HTTPS remote; firmware compatibility. | [#33](https://github.com/ryanraposo/gyroclopter/issues/33) | ☐ |
+| Apple tvOS | Companion remote; system focus and media. | [#30](https://github.com/ryanraposo/gyroclopter/issues/30) | ☐ |
+| Huawei HarmonyOS | Distributed remote and HID feasibility. | [#46](https://github.com/ryanraposo/gyroclopter/issues/46) | ☐ |
+| Titan OS | Partner remote and HID feasibility. | [#43](https://github.com/ryanraposo/gyroclopter/issues/43) | ☐ |
+| Xumo / Comcast / Sky | RDK / Firebolt control feasibility. | [#45](https://github.com/ryanraposo/gyroclopter/issues/45) | ☐ |
+| TiVo OS | Authorized remote or hardware fallback. | [#44](https://github.com/ryanraposo/gyroclopter/issues/44) | ☐ |
+
+Other platform work (not directly comparable to TV market share): [macOS #25](https://github.com/ryanraposo/gyroclopter/issues/25), [ChromeOS #34](https://github.com/ryanraposo/gyroclopter/issues/34), [native iOS / Android controller #48](https://github.com/ryanraposo/gyroclopter/issues/48), [external HID / HDMI-CEC bridge #47](https://github.com/ryanraposo/gyroclopter/issues/47).
+
+Shared implementation foundation: [#41](https://github.com/ryanraposo/gyroclopter/issues/41).
+
+---
+
 ## Development Setup
 
 ### 1. Clone and install
