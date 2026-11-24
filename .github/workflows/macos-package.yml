@@ -1,0 +1,55 @@
+name: macOS package
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/macos-package.yml
+      - 'app/**'
+      - 'input/**'
+      - 'platforms/**'
+      - 'native/macos-mouse.c'
+      - scripts/build-mac.js
+      - client.html
+      - server.js
+      - package.json
+      - package-lock.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:mac -- --publish=never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Verify native helper and universal artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          helper="$(find dist -path '*/Gyroclopter.app/Contents/Resources/native/gyroclopter-mouse' -print -quit)"
+          test -x "$helper"
+          lipo "$helper" -verify_arch arm64 x86_64
+          "$helper" --self-test
+          test -n "$(find dist -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$(find dist -maxdepth 1 -name '*.zip' -print -quit)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error

@@ -242,6 +242,13 @@ ipcMain.on('stop-server', () => {
   stopServer();
 });
 
+ipcMain.on('open-accessibility-settings', () => {
+  if (process.platform === 'darwin') {
+    require('electron').shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility')
+      .catch((error) => console.error('Could not open Accessibility settings:', error.message));
+  }
+});
+
 app.whenReady().then(() => {
   // Request single instance lock - if we can't get it, quit immediately
   const gotLock = app.requestSingleInstanceLock();
