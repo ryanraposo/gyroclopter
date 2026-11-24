@@ -205,13 +205,24 @@ async function main() {
         ensureAppDir();
         initLogFile();
         const certificates = await getCertificates();
+        let pairingAddress = getLocalIp();
+        let addressChanged = () => {};
+        let leftButtonOwner = null;
         const mouse = createInputController({
             onError: (error) => emitStatus({ event: 'input_error', ...error }),
-            onAvailability: (available) => emitStatus({ event: 'input_availability', available })
+            onAvailability: (available) => {
+                if (!available) leftButtonOwner = null;
+                emitStatus({ event: 'input_availability', available });
+            },
+            onPairingAddress: (ip) => {
+                if (require('net').isIPv4(ip) && ip !== pairingAddress) {
+                    pairingAddress = ip;
+                    addressChanged();
+                }
+            }
         });
 
         let connectedCount = 0;
-        let leftButtonOwner = null;
 
         function releaseLeft(ws) {
             if (leftButtonOwner !== ws) return;
@@ -299,8 +310,10 @@ async function main() {
             });
         });
 
-        const localIp = getLocalIp();
-        server.listen(CONFIG.PORT, '0.0.0.0', async () => {
+        let publishQueue = Promise.resolve();
+        function publishAddress(event) {
+            const localIp = pairingAddress;
+            publishQueue = publishQueue.then(async () => {
             const port = server.address().port;
             const url = `https://${localIp}:${port}`;
             const pairingUrl = pairingKey ? `${url}/#pair=${pairingKey}` : undefined;
@@ -314,7 +327,7 @@ async function main() {
             } catch (_) { /* QR generation failed silently */ }
 
             emitStatus({
-                event: 'started',
+                event,
                 ip: localIp,
                 port,
                 qr,
@@ -322,6 +335,11 @@ async function main() {
                 inputBackend: mouse.name || 'unknown',
                 inputAvailable: mouse.available !== false
             });
+            }).catch(error => emitStatus({ event: 'error', code: 'PAIRING_ADDRESS_ERROR', message: error.message }));
+        }
+        server.listen(CONFIG.PORT, '0.0.0.0', () => {
+            publishAddress('started');
+            addressChanged = () => publishAddress('address');
         });
 
         let shuttingDown = false;

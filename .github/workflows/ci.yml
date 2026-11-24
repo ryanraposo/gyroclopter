@@ -26,3 +26,5 @@ jobs:
       - run: npm test -- --runInBand
       - run: npm run build:icons
       - run: npx --no-install electron-builder --help
+      - run: npm run web:build
+      - run: npm run web:verify

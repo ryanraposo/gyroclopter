@@ -128,8 +128,15 @@ window.electronAPI?.onServerEvent?.((msg) => {
       copyPairingUrl.textContent = 'Copy pairing link';
       setStatus(true);
       if (!STATE.inputIssue && msg.inputAvailable === false &&
-          ['macos', 'windows-store'].includes(msg.inputBackend)) {
+          ['macos', 'windows-store', 'chromeos-automation'].includes(msg.inputBackend)) {
         els.statusText.textContent = 'Input starting…';
+      }
+      break;
+    case 'address':
+      if (STATE.running) {
+        showQR('https://' + msg.ip + ':' + msg.port, msg.qr || '');
+        pairingUrl = msg.pairingUrl || null;
+        copyPairingUrl.hidden = !pairingUrl;
       }
       break;
     case 'input_error':
@@ -140,6 +147,8 @@ window.electronAPI?.onServerEvent?.((msg) => {
       if (msg.available) {
         STATE.inputIssue = null;
         if (STATE.running) setStatus(true);
+      } else if (STATE.running) {
+        els.statusText.textContent = 'Input unavailable';
       }
       break;
     case 'connection':
