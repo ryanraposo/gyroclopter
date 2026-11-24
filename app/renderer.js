@@ -8,7 +8,8 @@ const STATE = {
   serverPid: null,
   running: false,
   connectedCount: 0,
-  togglePending: false
+  togglePending: false,
+  inputIssue: null
 };
 
 const els = {
@@ -45,6 +46,14 @@ function setStatus(running) {
   STATE.togglePending = false;
   els.statusDot.className = 'status-dot ' + (running ? 'running' : 'stopped');
   els.statusText.textContent = running ? 'Running' : 'Stopped';
+  els.statusText.removeAttribute('title');
+  if (!running) STATE.inputIssue = null;
+  if (STATE.inputIssue) {
+    els.statusText.textContent = STATE.inputIssue.code === 'ACCESSIBILITY_REQUIRED'
+      ? 'Allow Accessibility' : 'Input unavailable';
+    els.statusText.title = STATE.inputIssue.message;
+    els.statusDot.className = 'status-dot stopped';
+  }
   els.btnToggle.textContent = running ? 'Stop Server' : 'Start Server';
   els.btnToggle.className = 'btn ' + (running ? 'btn-stop' : 'btn-start');
   els.btnToggle.title = running ? 'Stop server' : 'Start server';
@@ -101,6 +110,20 @@ window.electronAPI?.onServerEvent?.((msg) => {
       const url = 'https://' + msg.ip + ':' + msg.port;
       showQR(url, msg.qr || '');
       setStatus(true);
+      if (!STATE.inputIssue && msg.inputAvailable === false &&
+          ['macos', 'windows-store'].includes(msg.inputBackend)) {
+        els.statusText.textContent = 'Input starting…';
+      }
+      break;
+    case 'input_error':
+      STATE.inputIssue = msg;
+      if (STATE.running) setStatus(true);
+      break;
+    case 'input_availability':
+      if (msg.available) {
+        STATE.inputIssue = null;
+        if (STATE.running) setStatus(true);
+      }
       break;
     case 'connection':
     case 'disconnection':

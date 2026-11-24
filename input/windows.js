@@ -4,7 +4,9 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 class WindowsInputController {
-  constructor() {
+  constructor({ onError = () => {}, onAvailability = () => {} } = {}) {
+    this.onError = onError;
+    this.onAvailability = onAvailability;
     this.name = 'windows';
     this.available = true;
     this.process = null;
@@ -54,8 +56,7 @@ class WindowsInputController {
       this.scriptPath = path.join(os.tmpdir(), `gyroclopter-mouse-${process.pid}.ps1`);
       fs.writeFileSync(this.scriptPath, this.buildScript(), 'utf8');
     } catch (err) {
-      console.error('Failed to write Windows input script:', err);
-      this.available = false;
+      this.fail(err.message);
       return;
     }
 
@@ -68,25 +69,20 @@ class WindowsInputController {
       windowsHide: true
     });
 
-    this.process.on('error', (err) => {
-      console.error('Failed to start Windows input controller:', err);
-      this.ready = false;
-      this.available = false;
-    });
+    this.process.on('error', (err) => this.fail(err.message));
+    this.process.stdin.on('error', (err) => this.fail(err.message));
 
     this.process.stderr.on('data', (chunk) => {
       const msg = chunk.toString();
       if (msg.startsWith('STARTUP_ERR')) {
-        console.error('Windows input controller startup failed:', msg);
-        this.ready = false;
-        this.available = false;
+        this.fail(msg.slice('STARTUP_ERR '.length).trim());
       } else if (msg.startsWith('ERR ')) {
         console.error('Windows input controller command error:', msg);
       }
     });
 
-    this.process.on('exit', () => {
-      this.ready = false;
+    this.process.on('close', (code) => {
+      if (this.process) this.fail(`Mouse helper stopped (${code}). Restart the server to retry.`);
       this.process = null;
     });
 
@@ -97,8 +93,9 @@ class WindowsInputController {
       while ((idx = stdoutBuffer.indexOf('\n')) !== -1) {
         const line = stdoutBuffer.slice(0, idx).trim();
         stdoutBuffer = stdoutBuffer.slice(idx + 1);
-        if (line === 'READY') {
+        if (line === 'READY' && this.available && this.process) {
           this.ready = true;
+          this.onAvailability(true);
           const pending = this.queue;
           this.queue = [];
           for (const cmd of pending) this.sendCommand(cmd);
@@ -107,8 +104,16 @@ class WindowsInputController {
     });
   }
 
+  fail(message) {
+    if (!this.available) return;
+    this.ready = false;
+    this.available = false;
+    this.queue = [];
+    this.onError({ code: 'WINDOWS_INPUT_ERROR', message });
+  }
+
   sendCommand(command) {
-    if (!this.process || !this.process.stdin || !this.process.stdin.writable) return;
+    if (!this.available || !this.process || !this.process.stdin || !this.process.stdin.writable) return;
     if (!this.ready) {
       this.queue.push(command);
       if (this.queue.length > 256) this.queue.shift();
@@ -118,6 +123,7 @@ class WindowsInputController {
   }
 
   dispose() {
+    this.available = false;
     if (this.process) {
       try {
         if (this.process.stdin && this.process.stdin.writable) this.process.stdin.write('exit\n');
