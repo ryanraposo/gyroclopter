@@ -48,7 +48,7 @@ const { spawn } = require('child_process');
 const WebSocket = require('ws');
 const QRCode = require('qrcode');
 const selfsigned = require('selfsigned');
-const { createInputController } = require('./input');
+const { createInputController, describeInputBackend } = require('./input');
 const { dispatchInputMessage } = require('./input/commands');
 
 const CONFIG = {
@@ -208,6 +208,7 @@ async function main() {
         let pairingAddress = getLocalIp();
         let addressChanged = () => {};
         let leftButtonOwner = null;
+        const tvMode = describeInputBackend().family === 'tv';
         const mouse = createInputController({
             onError: (error) => emitStatus({ event: 'input_error', ...error }),
             onAvailability: (available) => {
@@ -230,7 +231,7 @@ async function main() {
             handleWsMessage({ type: 'up' }, mouse);
         }
 
-        const pairingKey = process.env.GYROCLOPTER_PAIRING_REQUIRED === '1'
+        const pairingKey = tvMode || process.env.GYROCLOPTER_PAIRING_REQUIRED === '1'
             ? randomBytes(16).toString('hex')
             : null;
 
@@ -278,8 +279,14 @@ async function main() {
             emitStatus({ event: 'error', code: err.code || 'WSS_ERROR', message: err.message });
         });
 
+        if (tvMode) mouse.on('capabilities', snapshot => {
+            const payload = JSON.stringify({type:'capabilities', ...snapshot});
+            for (const client of wss.clients) if (client.readyState === WebSocket.OPEN) client.send(payload);
+        });
         wss.on('connection', (ws) => {
+            if (tvMode && connectedCount > 0) { ws.close(1008, 'One TV controller per session'); return; }
             connectedCount++;
+            if (tvMode) ws.send(JSON.stringify({type:'capabilities', ...mouse.snapshot()}));
             emitStatus({ event: 'connection', count: connectedCount });
 
             ws.on('error', (err) => {
@@ -290,7 +297,9 @@ async function main() {
             ws.on('message', (message) => {
                 try {
                     const data = JSON.parse(message);
-                    if (data?.type === 'down') {
+                    if (tvMode && ['focus','select','back','home','media'].includes(data?.type)) {
+                        if (!leftButtonOwner) mouse.sendAction(data);
+                    } else if (data?.type === 'down') {
                         if (leftButtonOwner || mouse.available === false) return;
                         if (handleWsMessage(data, mouse)) leftButtonOwner = ws;
                     } else if (data?.type === 'up') {
@@ -304,7 +313,8 @@ async function main() {
             });
 
             ws.on('close', () => {
-                releaseLeft(ws);
+                if (tvMode) { mouse.cancelInput(); leftButtonOwner = null; }
+                else releaseLeft(ws);
                 connectedCount = Math.max(0, connectedCount - 1);
                 emitStatus({ event: 'disconnection', count: connectedCount });
             });
@@ -346,7 +356,8 @@ async function main() {
         const shutdown = () => {
             if (shuttingDown) return;
             shuttingDown = true;
-            if (leftButtonOwner) releaseLeft(leftButtonOwner);
+            if (tvMode) { mouse.cancelInput(); leftButtonOwner = null; }
+            else if (leftButtonOwner) releaseLeft(leftButtonOwner);
             mouse.dispose();
             for (const ws of wss.clients) ws.terminate();
             wss.close();
