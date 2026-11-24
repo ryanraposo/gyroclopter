@@ -4,6 +4,7 @@ on:
   pull_request:
     paths: &mac_paths
       - .github/workflows/macos-package.yml
+      - .github/workflows/release.yml
       - 'app/**'
       - 'input/**'
       - 'platforms/index.js'
@@ -20,6 +21,19 @@ on:
     branches: [dev, main]
     paths: *mac_paths
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      signed:
+        type: boolean
+        default: false
+    secrets:
+      CSC_LINK:
+      CSC_KEY_PASSWORD:
+      CSC_INSTALLER_LINK:
+      CSC_INSTALLER_KEY_PASSWORD:
+      APPLE_ID:
+      APPLE_APP_SPECIFIC_PASSWORD:
+      APPLE_TEAM_ID:
 
 permissions:
   contents: read
@@ -39,13 +53,52 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npm run build:mac -- --publish=never
+      - if: '!inputs.signed'
+        run: npm run build:mac -- --publish=never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - if: inputs.signed
+        name: Sign application and installer
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
+          CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
+        run: |
+          : "${CSC_LINK:?Configure the Developer ID Application certificate}"
+          : "${CSC_INSTALLER_LINK:?Configure the Developer ID Installer certificate}"
+          npm run build:mac -- --publish=never -c.forceCodeSigning=true -c.mac.notarize=false
       - name: Verify installer payload and universal binaries
+        env:
+          VERIFY_MACOS_SIGNATURE: ${{ inputs.signed && '1' || '0' }}
         run: bash scripts/verify-macos-pkg.sh
+      - if: inputs.signed
+        name: Notarize and staple the installer
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          : "${APPLE_ID:?Configure the Apple ID used for notarization}"
+          : "${APPLE_APP_SPECIFIC_PASSWORD:?Configure the Apple app-specific password}"
+          : "${APPLE_TEAM_ID:?Configure the Apple Developer team ID}"
+          version="$(node -p "require('./package.json').version")"
+          package="dist/Gyroclopter-$version.pkg"
+          result="$(xcrun notarytool submit "$package" --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait --output-format json)"
+          echo "$result"
+          if ! jq -e '.status == "Accepted"' <<< "$result" > /dev/null; then
+            submission="$(jq -r .id <<< "$result")"
+            xcrun notarytool log "$submission" --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID"
+            exit 1
+          fi
+          xcrun stapler staple "$package"
+          xcrun stapler validate "$package"
+          spctl --assess --type install -vv "$package"
       - uses: actions/upload-artifact@v4
         with:
-          name: macos-universal-pkg-review
+          name: ${{ inputs.signed && 'macos-universal-pkg-release' || 'macos-universal-pkg-review' }}
           path: dist/*.pkg
           if-no-files-found: error
+          overwrite: true

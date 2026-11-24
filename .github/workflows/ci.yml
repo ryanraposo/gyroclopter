@@ -22,6 +22,7 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+      - run: npm run release:check
       - run: npm ci
       - run: npm test -- --runInBand
       - run: npm run build:icons

@@ -22,13 +22,13 @@ Download the latest installer from [Releases](https://github.com/ryanraposo/gyro
 ### Linux
 Download the latest `.deb` from [Releases](https://github.com/ryanraposo/gyroclopter/releases) and install:
 ```bash
-sudo dpkg -i gyroclopter_*.deb
+sudo dpkg -i gyroclopter-*.deb
 ```
 
 Then launch from your applications menu.
 
 ### macOS
-A single universal `.pkg` installer is planned for the next public release. Open the package, follow Installer's prompts, and launch Gyroclopter from Applications. Intel and Apple silicon use the same file. For current unsigned development builds and Accessibility setup, see [macOS setup](MACOS.md).
+When the universal `.pkg` is available on [Releases](https://github.com/ryanraposo/gyroclopter/releases), open it, follow Installer's prompts, and launch Gyroclopter from Applications. Intel and Apple silicon use the same file. See [macOS setup](MACOS.md) for Accessibility and unsigned review builds.
 
 ---
 
@@ -107,8 +107,8 @@ npm run build:mac    # Universal macOS installer (.pkg; on macOS)
 - **Windows builds (from Linux):** Requires Wine (`sudo apt install wine64`)
 
 Produces:
-- `dist/Gyroclopter Setup *.exe` (Windows NSIS installer, ~75 MB)
-- `dist/gyroclopter_*.deb` (Linux Debian package, ~71 MB)
+- `dist/gyroclopter-<version>.exe` (Windows NSIS installer)
+- `dist/gyroclopter-<version>.deb` (Linux Debian package)
 - `dist/Gyroclopter-<version>.pkg` (universal macOS installer)
 
 ---
@@ -148,51 +148,8 @@ This creates:
 - Tray: 16x16 favicon in system tray
 
 **Linux:**
-- Package: `dist/gyroclopter_*.deb` (uses `build/icons/` directory)
+- Package: `dist/gyroclopter-*.deb` (uses `build/icons/` directory)
 - System icons: Installed via Debian package manager
-
----
-
-## Changelog Generation
-
-Automatically generate `CHANGELOG.md` from conventional commit messages:
-
-```bash
-# Install changelog generator (one-time)
-npm install
-
-# Update changelog with recent commits
-npm run changelog
-
-# Regenerate entire changelog from scratch
-npm run changelog:all
-
-# Or use the shell script
-./scripts/changelog.sh
-./scripts/changelog.sh v0.5.0  # with version tag
-```
-
-### Conventional Commit Format
-
-Commits should follow the [Conventional Commits](https://www.conventionalcommits.org/) spec:
-
-```
-feat: add scroll support
-fix: correct mouse sensitivity
-docs: update README build instructions
-refactor: simplify server startup
-```
-
-The changelog automatically categorizes commits into:
-- **Features** (`feat:`)
-- **Bug Fixes** (`fix:`)
-- **Code Refactoring** (`refactor:`)
-- **Documentation** (`docs:`)
-- **Build System** (`build:`)
-- **Tests** (`test:`)
-- And more...
-
-GitHub Actions will auto-update the changelog on version tag pushes.
 
 ---
 
@@ -296,88 +253,11 @@ Style: CommonJS, 2-space indent, clear commits.
 
 ---
 
-## Release Process
+## Releases
 
-Gyroclopter releases are cut from the `dev` branch and shipped via GitHub Actions when a `v*` tag is pushed.
+Record user-facing changes under `Unreleased` in [CHANGELOG.md](CHANGELOG.md). Use `npm run release:preview` to review what's queued.
 
-### 1. Prepare the release on `dev`
-
-All release-targeted changes should be merged into `dev` first.
-
-```bash
-git checkout dev
-git merge origin/dev   # incorporate any remote dev work
-```
-
-### 2. Bump the version
-
-Update the version in `package.json` (SemVer `MAJOR.MINOR.PATCH`):
-
-```json
-{
-  "version": "0.6.0"
-}
-```
-
-### 3. Update the changelog
-
-Add a release entry at the top of `CHANGELOG.md` using [Keep a Changelog](https://keepachangelog.com/) format:
-
-```markdown
-## [0.6.0](https://github.com/ryanraposo/gyroclopter/compare/v0.5.0...v0.6.0) (2026-11-01)
-
-### Added
-- New feature description
-
-### Fixed
-- Bug fix description
-```
-
-### 4. Verify
-
-Tests must pass before committing:
-
-```bash
-npm test
-```
-
-Optionally verify the build locally:
-
-```bash
-npm run build
-```
-
-### 5. Commit and merge into `main`
-
-Commit the version bump and changelog with a conventional message, then merge `dev` into `main`:
-
-```bash
-git add package.json CHANGELOG.md
-git commit -m "chore: release v0.6.0"
-
-git checkout main
-git merge dev
-```
-
-### 6. Tag the release
-
-Create an annotated tag and push both the branch and the tag:
-
-```bash
-git tag -a v0.6.0 -m "Release v0.6.0"
-git push origin main v0.6.0
-```
-
-Pushing a `v*` tag triggers the `build-release.yml` GitHub Actions workflow, which:
-- Runs the Jest test suite
-- Builds the Windows NSIS installer (`.exe`) and Linux Debian package (`.deb`)
-- Creates a GitHub Release with release notes and attaches both installers
-
-### 7. Verify the release
-
-Check the [Releases page](https://github.com/ryanraposo/gyroclopter/releases) for:
-- Release notes generated from the commit history
-- Both Windows and Linux installers attached
+To ship, prepare the version on `dev` and open a release PR into `main`. The PR builds review installers. After merge, push the matching tag from `main` to build the GitHub release draft. See [RELEASE.md](RELEASE.md) for the commands and signing setup.
 
 ---
 

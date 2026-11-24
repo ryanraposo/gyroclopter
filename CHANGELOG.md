@@ -1,3 +1,17 @@
+# Changelog
+
+## [Unreleased]
+
+### Added
+
+- Added macOS pointer control through Accessibility and a single universal installer for Intel and Apple silicon Macs.
+- Added a Windows Store package candidate with an in-package native pointer helper.
+- Added experimental ChromeOS Linux host and Web Pilot modes. Web Pilot controls its own browser surface.
+
+### Changed
+
+- Unified the desktop window, input status, and native Quit behavior across the desktop editions.
+
 # [0.6.0](https://github.com/ryanraposo/gyroclopter/compare/v0.5.0...v0.6.0) (2026-11-01)
 
 

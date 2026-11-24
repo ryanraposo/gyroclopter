@@ -34,14 +34,16 @@ npm run build
 ```
 - Test suite must exit with code 0 before any commit.
 - Build produces installers in `dist/`:
-  - Windows: `Gyroclopter-0.4.0.exe` (NSIS installer)
-  - Linux: `gyroclopter_0.4.0_amd64.deb` (Debian package)
+  - Windows: `gyroclopter-<version>.exe` (NSIS installer)
+  - Linux: `gyroclopter-<version>.deb` (Debian package)
 
 ---
 
-## CHANGELOG Maintenance
+## Changelog and Releases
 
-See [RELEASE.md](RELEASE.md) for instructions on updating `CHANGELOG.md` before merging to `main`.
+- Target `dev` for feature and fix PRs. Add a user-facing bullet under `Unreleased` in `CHANGELOG.md` when the PR changes behavior or distribution. Keep experimental support and hardware acceptance explicit.
+- Run `npm run release:check` and `npm test` before committing. Use `npm run release:preview` to review queued notes.
+- For a requested release, use `npm run release:prepare -- <version>` on `dev` and open the PR into `main`. Tag and publish only when requested. See [RELEASE.md](RELEASE.md) for the exact commands.
 
 ---
 
@@ -137,7 +139,7 @@ gyroclopter/
 │
 ├── scripts/                      # Build utilities
 │   ├── build-icon.js             # Generates icon from hero.png
-│   └── changelog.sh              # Changelog generation script
+│   └── release.js                # Prepare and verify release metadata
 │
 ├── build/                        # Build resources (icons, etc.)
 │   ├── icon.ico                  # Windows app/tray icon (generated)
@@ -146,8 +148,8 @@ gyroclopter/
 │
 ├── dist/                         # Build output (gitignored)
 │   ├── win-unpacked/             # Unpacked Windows build (dev)
-│   ├── gyroclopter-0.5.0.exe     # Windows NSIS installer
-│   └── gyroclopter_0.5.0_amd64.deb  # Linux Debian package
+│   ├── gyroclopter-<version>.exe  # Windows NSIS installer
+│   └── gyroclopter-<version>.deb  # Linux Debian package
 │
 ├── package.json                  # Dependencies, scripts, electron-builder config
 ├── package-lock.json             # Locked dependency versions
